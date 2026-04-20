@@ -1,0 +1,22 @@
+# Logs
+logs/
+*.log
+hs_err_pid*.log
+replay_pid*.log
+
+# Build / IDE
+target/
+.idea/
+*.iml
+.mvn/
+mvnw
+mvnw.cmd
+
+# Frontend
+**/node_modules/
+**/dist/
+.env
+
+# OS
+.DS_Store
+Thumbs.db
