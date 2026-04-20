@@ -28,6 +28,8 @@ graph TD
     Resume --> Template[Template Service: 8087]
     Resume --> Section
     
+    Template --> pdflatex((pdflatex Engine))
+    
     Payment[Payment Service: 900] -- Kafka --> AI
     
     Eureka(Eureka Server: 8761) --- Gateway
@@ -48,7 +50,7 @@ graph TD
 | **Notification Svc**| `8090` | Real-time email alerts for analysis and payments | Kafka, JavaMail |
 | **Payment Service** | `900` | Credit management and Razorpay integration | Razorpay SDK, Kafka |
 | **Job Service** | `8086` | Job description storage and matching logic | JPA, MySQL |
-| **Template Svc** | `8087` | HTML-to-PDF dynamic template rendering | Thymeleaf, OpenPDF |
+| **Template Svc** | `8087` | Dynamic LaTeX-based PDF template generation | LaTeX, pdflatex, MySQL |
 
 ---
 
@@ -56,7 +58,7 @@ graph TD
 
 - **🤖 AI Resume Analysis**: Leverages Google Gemini to provide strengths, weaknesses, and keyword suggestions.
 - **📈 ATS Scoring**: Calculates how well a resume matches job descriptions for top-tier companies.
-- **📄 Pro Templates**: Dynamic PDF generation with multiple professional templates.
+- **📄 Pro Templates**: Enterprise-grade PDF generation using **LaTeX** for pixel-perfect professional layout.
 - **🔐 Secure Auth**: Role-based access control and social login.
 - **💳 Credit System**: Pay-per-analysis model integrated with Razorpay.
 - **🏗 Event-Driven**: Asynchronous notification delivery via Kafka for smooth UX.
@@ -68,6 +70,7 @@ graph TD
 - **Backend**: Java 25, Spring Boot 3.x
 - **Database**: MySQL, Hibernate/JPA
 - **Messaging**: Apache Kafka
+- **PDF Engine**: LaTeX (pdflatex)
 - **Security**: Spring Security, JWT, OAuth2
 - **Documentation**: OpenAPI 3.0 (Swagger UI) centralized via Gateway
 - **DevOps**: SonarQube, JaCoCo, Maven Wrapper
@@ -81,7 +84,8 @@ graph TD
 - **Maven 3.x**
 - **MySQL 8.x**
 - **Apache Kafka** (Zookeeper/Kraft)
-- **Gemini API Key** (Set in AI Service/Environment)
+- **LaTeX Distribution**: A working `pdflatex` installation (e.g., MiKTeX, TeX Live)
+- **Gemini API Key**: Set in AI Service/Environment
 
 ### Environment Setup
 1. Clone the repository: `git clone https://github.com/Akshat-Jain02/AI-Powered-Resume-Builder-Backend.git`

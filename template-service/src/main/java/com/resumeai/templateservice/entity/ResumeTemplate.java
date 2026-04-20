@@ -50,12 +50,12 @@ public class ResumeTemplate {
     private String accentColor;
 
     /**
-     * Thymeleaf HTML filename (without .html extension).
-     * e.g. "template1"  →  src/main/resources/templates/template1.html
+     * Internal LaTeX template identifier.
+     * e.g. 1 (Executive Classic), 2 (Modern Slate)
      */
-    @NotBlank(message = "HTML template name is required")
-    @Column(name = "html_template_name", nullable = false)
-    private String htmlTemplateName;
+    @Column(name = "template_id", nullable = false)
+    private int templateId;
+
 
     @Column(name = "created_at")
     private LocalDate createdAt = LocalDate.now();
