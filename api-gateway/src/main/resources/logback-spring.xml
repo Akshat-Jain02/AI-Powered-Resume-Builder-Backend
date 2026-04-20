@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  logback-spring.xml — api-gateway  [REACTIVE / WebFlux]
+  MDC note: In reactive pipelines, MDC is thread-local and does NOT propagate
+  across scheduler hops automatically. The ReactorContextMdcFilter populates
+  MDC on each subscriber context switch via Hooks.onEachOperator.
+-->
+<configuration scan="true" scanPeriod="30 seconds">
+  <!--
+    Declare Spring Boot colour and exception converters so %clr and %wEx
+    work correctly with Logback 1.4+ / Spring Boot 3.x.
+    These classes ship inside spring-boot-X.X.X.jar.
+  -->
+  <conversionRule conversionWord="clr"  converterClass="org.springframework.boot.logging.logback.ColorConverter"/>
+  <conversionRule conversionWord="wEx"  converterClass="org.springframework.boot.logging.logback.WhitespaceThrowableProxyConverter"/>
+  <conversionRule conversionWord="wex"  converterClass="org.springframework.boot.logging.logback.WhitespaceThrowableProxyConverter"/>
+
+
+
+  <springProperty scope="context" name="APP_NAME"  source="spring.application.name" defaultValue="api-gateway"/>
+  <springProperty scope="context" name="LOG_DIR"   source="logging.file.path"       defaultValue="../logs/${APP_NAME}"/>
+  <springProperty scope="context" name="LOG_LEVEL" source="logging.level.root"      defaultValue="INFO"/>
+
+  <property name="CONSOLE_PATTERN"
+            value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${APP_NAME}){cyan} %clr(---) %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} [%X{traceId:-no-trace} | %X{requestId:-no-req}] %m%n%wEx"/>
+
+  <property name="FILE_PATTERN"
+            value="%d{yyyy-MM-dd HH:mm:ss.SSS} %5p ${APP_NAME} --- [%t] %-40.40logger{39} : [%X{traceId:-no-trace} | %X{requestId:-no-req}] %m%n%wEx"/>
+
+  <!-- Console -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>${CONSOLE_PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+  </appender>
+
+  <!-- Main rolling file -->
+  <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/${APP_NAME}.log</file>
+    <encoder>
+      <pattern>${FILE_PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_DIR}/archived/${APP_NAME}-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      <maxFileSize>50MB</maxFileSize>
+      <maxHistory>30</maxHistory>
+      <totalSizeCap>2GB</totalSizeCap>
+    </rollingPolicy>
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>INFO</level>
+    </filter>
+  </appender>
+
+  <!-- Error-only file -->
+  <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/${APP_NAME}-error.log</file>
+    <encoder>
+      <pattern>${FILE_PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_DIR}/archived/${APP_NAME}-error-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      <maxFileSize>20MB</maxFileSize>
+      <maxHistory>60</maxHistory>
+      <totalSizeCap>1GB</totalSizeCap>
+    </rollingPolicy>
+    <filter class="ch.qos.logback.classic.filter.LevelFilter">
+      <level>ERROR</level>
+      <onMatch>ACCEPT</onMatch>
+      <onMismatch>DENY</onMismatch>
+    </filter>
+  </appender>
+
+  <!-- Async wrappers -->
+  <appender name="ASYNC_ROLLING" class="ch.qos.logback.classic.AsyncAppender">
+    <queueSize>512</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <includeCallerData>false</includeCallerData>
+    <appender-ref ref="ROLLING_FILE"/>
+  </appender>
+
+  <appender name="ASYNC_ERROR" class="ch.qos.logback.classic.AsyncAppender">
+    <queueSize>256</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <includeCallerData>true</includeCallerData>
+    <appender-ref ref="ERROR_FILE"/>
+  </appender>
+
+  <!-- Application package -->
+  <logger name="com.apigateway" level="INFO" additivity="false">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="ASYNC_ROLLING"/>
+    <appender-ref ref="ASYNC_ERROR"/>
+  </logger>
+
+  <!-- Suppress noisy framework logs -->
+  <logger name="org.springframework"               level="WARN"/>
+  <logger name="org.springframework.security"      level="WARN"/>
+  <logger name="org.springframework.cloud.gateway" level="INFO"/>
+  <logger name="com.netflix.discovery"             level="WARN"/>
+  <logger name="com.netflix.eureka"                level="WARN"/>
+  <logger name="reactor.netty"                     level="WARN"/>
+  <logger name="io.netty"                          level="WARN"/>
+
+  <springProfile name="dev">
+    <logger name="com.apigateway" level="DEBUG" additivity="false">
+      <appender-ref ref="CONSOLE"/>
+      <appender-ref ref="ASYNC_ROLLING"/>
+      <appender-ref ref="ASYNC_ERROR"/>
+    </logger>
+    <logger name="org.springframework.cloud.gateway" level="DEBUG"/>
+    <root level="INFO">
+      <appender-ref ref="CONSOLE"/>
+      <appender-ref ref="ASYNC_ROLLING"/>
+      <appender-ref ref="ASYNC_ERROR"/>
+    </root>
+  </springProfile>
+
+  <springProfile name="prod">
+    <logger name="com.apigateway" level="INFO" additivity="false">
+      <appender-ref ref="CONSOLE"/>
+      <appender-ref ref="ASYNC_ROLLING"/>
+      <appender-ref ref="ASYNC_ERROR"/>
+    </logger>
+    <logger name="org.springframework.cloud.gateway" level="WARN"/>
+    <root level="WARN">
+      <appender-ref ref="CONSOLE"/>
+      <appender-ref ref="ASYNC_ROLLING"/>
+      <appender-ref ref="ASYNC_ERROR"/>
+    </root>
+  </springProfile>
+
+  <root level="${LOG_LEVEL}">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="ASYNC_ROLLING"/>
+    <appender-ref ref="ASYNC_ERROR"/>
+  </root>
+
+</configuration>
