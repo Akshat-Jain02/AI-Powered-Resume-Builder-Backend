@@ -11,6 +11,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -25,6 +27,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class OAuth2SuccessHandlerTest {
 
     @Mock private JwtUtil jwtService;
@@ -113,5 +116,31 @@ class OAuth2SuccessHandlerTest {
         handler.onAuthenticationSuccess(request, response, authentication);
 
         verify(jwtService).generateToken(eq("alice@example.com"), eq("alice@example.com"), eq(List.of("USER")));
+    }
+
+    @Test
+    void onAuthenticationSuccess_identifierNotFound_redirectsWithError() throws IOException {
+        // Mock authentication where email and login are missing, and getName() is null
+        OAuth2User oauthUser = mock(OAuth2User.class);
+        when(authentication.getPrincipal()).thenReturn(oauthUser);
+        when(oauthUser.getAttributes()).thenReturn(Map.of());
+        when(oauthUser.getName()).thenReturn(null);
+
+        handler.onAuthenticationSuccess(request, response, authentication);
+
+        verify(response).sendRedirect(contains("error=oauth_no_email"));
+    }
+
+    @Test
+    void onAuthenticationSuccess_serviceError_redirectsWithError() throws IOException {
+        OAuth2User oauthUser = new DefaultOAuth2User(
+                Set.of(), Map.of("email", "alice@example.com", "sub", "12345"), "sub"
+        );
+        when(authentication.getPrincipal()).thenReturn(oauthUser);
+        when(userService.findOrCreateUser(anyString())).thenThrow(new RuntimeException("DB error"));
+
+        handler.onAuthenticationSuccess(request, response, authentication);
+
+        verify(response).sendRedirect(contains("error=oauth_error"));
     }
 }

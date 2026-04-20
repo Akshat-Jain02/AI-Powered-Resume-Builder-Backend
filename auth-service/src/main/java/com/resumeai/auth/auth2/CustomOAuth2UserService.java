@@ -27,7 +27,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
-        OAuth2User oauthUser = super.loadUser(userRequest);
+        OAuth2User oauthUser = loadUserFromParent(userRequest);
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
 
         if ("github".equalsIgnoreCase(registrationId)) {
@@ -35,6 +35,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         }
 
         return oauthUser;
+    }
+
+    protected OAuth2User loadUserFromParent(OAuth2UserRequest userRequest) {
+        return super.loadUser(userRequest);
     }
 
     private OAuth2User handleGitHubEmail(OAuth2UserRequest userRequest, OAuth2User oauthUser) {

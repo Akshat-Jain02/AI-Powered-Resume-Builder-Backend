@@ -162,7 +162,7 @@ public class ResumeService {
             throw new RuntimeException("Template not found: " + templateId);
         } catch (FeignException e) {
             log.error("Template Service communication failure: status={} message={}", e.status(), e.getMessage());
-            throw new RuntimeException("Template Service communication failed: " + e.status() + " " + e.getMessage());
+            throw new RuntimeException("Template Service is unavailable: " + e.status() + " " + e.getMessage());
         }
     }
 

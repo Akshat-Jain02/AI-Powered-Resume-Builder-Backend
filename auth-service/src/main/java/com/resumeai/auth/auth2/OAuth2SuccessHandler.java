@@ -42,34 +42,53 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         log.info("OAuth2 login success. Provider attributes keys: {}", attrs.keySet());
 
-        // ── Extract email from provider ──────────────────────────────────────
-        // CustomOAuth2UserService ensures that GitHub users have a real email in attributes
+        // ── Extract identifier (email) from provider ────────────────────────
         String email = (String) attrs.get("email");
 
         if (email == null || email.isBlank()) {
-            log.error("OAuth2 user has no email attribute after CustomOAuth2UserService processing. Attributes: {}", attrs);
+            // Fallback 1: login (common for GitHub/GitLab)
+            if (attrs.containsKey("login")) {
+                email = attrs.get("login") + "@github.oauth";
+                log.info("Using provider login fallback: {}", email);
+            } 
+            // Fallback 2: principal name (sub/id)
+            else {
+                String name = oauthUser.getName();
+                if (name != null && !name.isBlank()) {
+                    email = name + "@oauth";
+                    log.info("Using principal name fallback: {}", email);
+                }
+            }
+        }
+
+        if (email == null || email.isBlank()) {
+            log.error("OAuth2 user has no resolvable identifier. Attributes: {}", attrs);
             response.sendRedirect(frontendUrl + "/login?error=oauth_no_email");
             return;
         }
 
         // ── Find or create local user ────────────────────────────────────────
-        UserAuthEntity user = userService.findOrCreateUser(email);
-        log.info("OAuth2 user resolved: username={}", user.getUsername());
+        try {
+            UserAuthEntity user = userService.findOrCreateUser(email);
+            log.info("OAuth2 user resolved: username={}", user.getUsername());
 
-        List<String> roles = (user.getRoles() != null && !user.getRoles().isEmpty())
-                ? user.getRoles()
-                : List.of("USER");
+            List<String> roles = (user.getRoles() != null && !user.getRoles().isEmpty())
+                    ? user.getRoles()
+                    : List.of("USER");
 
-        // ── Generate JWT ─────────────────────────────────────────────────────
-        String token = jwtService.generateToken(user.getUsername(), user.getEmail(), roles);
+            // ── Generate JWT ─────────────────────────────────────────────────────
+            String token = jwtService.generateToken(user.getUsername(), user.getEmail(), roles);
 
-        // ── Redirect to frontend with token in URL params ────────────────────
-        // The Login.jsx page reads ?token= and ?username= on mount and stores them
-        String redirectUrl = frontendUrl + "/login"
-                + "?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8)
-                + "&username=" + URLEncoder.encode(user.getUsername(), StandardCharsets.UTF_8);
+            // ── Redirect to frontend with token in URL params ────────────────────
+            String redirectUrl = frontendUrl + "/login"
+                    + "?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8)
+                    + "&username=" + URLEncoder.encode(user.getUsername(), StandardCharsets.UTF_8);
 
-        log.info("Redirecting OAuth2 user to: {}", frontendUrl + "/login?token=***");
-        response.sendRedirect(redirectUrl);
+            log.info("Redirecting OAuth2 user to: {}", frontendUrl + "/login?token=***");
+            response.sendRedirect(redirectUrl);
+        } catch (Exception e) {
+            log.error("Error finding or creating user for OAuth2 identifier {}: {}", email, e.getMessage());
+            response.sendRedirect(frontendUrl + "/login?error=oauth_error");
+        }
     }
 }

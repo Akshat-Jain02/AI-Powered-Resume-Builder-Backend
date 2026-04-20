@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.resumeai.auth.auth2.OAuth2SuccessHandler;
 import com.resumeai.auth.dto.request.UserLoginDTO;
 import com.resumeai.auth.dto.request.UserRegistrationDTO;
+import com.resumeai.auth.entity.PasswordResetToken;
 import com.resumeai.auth.entity.UserAuthEntity;
 import com.resumeai.auth.repository.UserAuthRepository;
 import com.resumeai.auth.service.PasswordResetService;
@@ -138,6 +139,105 @@ class UserAuthControllerTest {
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"alice@example.com\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void me_authenticated_returnsUsername() throws Exception {
+        var auth = new UsernamePasswordAuthenticationToken("alice", null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
+
+        mockMvc.perform(get("/api/auth/me")
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication(auth)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value("alice"));
+    }
+
+    @Test
+    void me_unauthenticated_returns401() throws Exception {
+        mockMvc.perform(get("/api/auth/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void resetPassword_success() throws Exception {
+        PasswordResetToken token = new PasswordResetToken();
+        token.setToken("valid-token");
+        token.setExpiryDate(java.time.LocalDateTime.now().plusHours(1));
+        UserAuthEntity user = new UserAuthEntity();
+        user.setUsername("alice");
+        token.setUserAuthEntity(user);
+
+        when(passwordResetService.findByToken("valid-token")).thenReturn(token);
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed-pass");
+
+        mockMvc.perform(post("/api/auth/reset-password")
+                .param("token", "valid-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"password\":\"newpassword\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Password updated successfully"));
+
+        verify(userAuthRepository).save(user);
+    }
+
+    @Test
+    void resetPassword_tokenExpired() throws Exception {
+        PasswordResetToken token = new PasswordResetToken();
+        token.setToken("expired-token");
+        token.setExpiryDate(java.time.LocalDateTime.now().minusHours(1));
+
+        when(passwordResetService.findByToken("expired-token")).thenReturn(token);
+
+        mockMvc.perform(post("/api/auth/reset-password")
+                .param("token", "expired-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"password\":\"newpassword\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Token is invalid or expired"));
+    }
+
+    @Test
+    void resetPassword_invalidToken() throws Exception {
+        when(passwordResetService.findByToken("invalid")).thenThrow(new RuntimeException("not found"));
+
+        mockMvc.perform(post("/api/auth/reset-password")
+                .param("token", "invalid")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"password\":\"newpassword\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Token is invalid or expired"));
+    }
+
+    @Test
+    void resetPassword_shortPassword() throws Exception {
+        PasswordResetToken token = new PasswordResetToken();
+        token.setToken("valid-token");
+        token.setExpiryDate(java.time.LocalDateTime.now().plusHours(1));
+
+        when(passwordResetService.findByToken("valid-token")).thenReturn(token);
+
+        mockMvc.perform(post("/api/auth/reset-password")
+                .param("token", "valid-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"password\":\"short\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Password must be at least 6 characters"));
+    }
+
+    @Test
+    void login_userNotFoundAfterAuth_returnsNullEmail() throws Exception {
+        UserLoginDTO dto = new UserLoginDTO();
+        dto.setUsername("unknown");
+        dto.setPassword("pass");
+
+        var auth = new UsernamePasswordAuthenticationToken("unknown", "pass", List.of());
+        when(authenticationManager.authenticate(any())).thenReturn(auth);
+        when(userAuthRepository.findByUsername("unknown")).thenReturn(java.util.Optional.empty());
+        when(jwtUtil.generateToken(any(), isNull(), any())).thenReturn("token");
+
+        mockMvc.perform(post("/api/auth/signin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk());
     }
 }
