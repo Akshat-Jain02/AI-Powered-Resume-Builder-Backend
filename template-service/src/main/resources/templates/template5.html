@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/><title>Resume</title></head>
+<body style="margin:0;padding:0;font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#1a1a1a;">
+<div style="width:800px;margin:0 auto;background:#fff;">
+
+  <!-- BOLD HEADER -->
+  <div style="padding:44px 52px 32px;border-top:6px solid #e63946;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+      <div>
+        <h1 style="margin:0;font-size:38px;font-weight:900;text-transform:uppercase;letter-spacing:-1px;line-height:1;" th:text="${fullName}">YOUR NAME</h1>
+        <p style="margin:8px 0 0;font-size:14px;font-weight:600;color:#e63946;text-transform:uppercase;letter-spacing:3px;" th:text="${targetJobTitle}">PROFESSIONAL TITLE</p>
+      </div>
+      <div style="text-align:right;font-size:11.5px;color:#666;line-height:1.8;">
+        <div th:if="${email != ''}" th:text="${email}"></div>
+        <div th:if="${phone != ''}" th:text="${phone}"></div>
+        <div th:if="${address != ''}" th:text="${address}"></div>
+        <div th:if="${linkedinUrl != ''}" th:text="${linkedinUrl}"></div>
+        <div th:if="${githubUrl != ''}" th:text="${githubUrl}"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FULL-WIDTH SKILLS BAR -->
+  <div th:if="${skills != null and !#lists.isEmpty(skills)}" style="background:#1a1a1a;padding:14px 52px;display:flex;flex-wrap:wrap;gap:10px;">
+    <span th:each="s : ${skills}" style="color:#e63946;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;" th:text="${s}"></span>
+    <span th:each="s,iter : ${skills}" th:if="${!iter.last}" style="color:#555;font-size:12px;">·</span>
+  </div>
+
+  <div style="padding:32px 52px;">
+
+    <div th:if="${summary != ''}" style="margin-bottom:28px;">
+      <div style="font-size:10px;font-weight:900;letter-spacing:2.5px;text-transform:uppercase;color:#1a1a1a;margin-bottom:10px;">Profile</div>
+      <p style="margin:0;font-size:13.5px;line-height:1.8;color:#444;" th:text="${summary}"></p>
+    </div>
+
+    <div th:if="${experience != null and !#lists.isEmpty(experience)}" style="margin-bottom:28px;">
+      <div style="font-size:10px;font-weight:900;letter-spacing:2.5px;text-transform:uppercase;color:#1a1a1a;margin-bottom:14px;padding-bottom:8px;border-bottom:3px solid #e63946;">Work Experience</div>
+      <div th:each="exp : ${experience}" style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <div>
+            <span style="font-size:15px;font-weight:800;color:#1a1a1a;" th:text="${exp.position} ?: ${exp.role} ?: ''"></span>
+            <span style="font-size:13px;color:#e63946;font-weight:600;margin-left:8px;" th:text="'@ ' + ${exp.company}"></span>
+          </div>
+          <span style="font-size:11px;color:#999;font-weight:500;" th:text="${exp.startDate} + ' – ' + (${exp.current} ? 'Present' : (${exp.endDate} ?: ''))"></span>
+        </div>
+        <div th:if="${exp.description != null and exp.description != ''}" style="margin-top:7px;font-size:12.5px;line-height:1.75;color:#555;" th:text="${exp.description}"></div>
+        <ul th:if="${exp.bullets != null and !#lists.isEmpty(exp.bullets)}" style="margin:7px 0 0;padding-left:18px;">
+          <li th:each="b : ${exp.bullets}" style="font-size:12.5px;line-height:1.75;color:#555;margin-bottom:3px;" th:text="${b}"></li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:40px;">
+      <div style="flex:3;">
+        <div th:if="${projects != null and !#lists.isEmpty(projects)}" style="margin-bottom:24px;">
+          <div style="font-size:10px;font-weight:900;letter-spacing:2.5px;text-transform:uppercase;color:#1a1a1a;margin-bottom:14px;padding-bottom:8px;border-bottom:3px solid #e63946;">Projects</div>
+          <div th:each="p : ${projects}" style="margin-bottom:14px;">
+            <div style="font-size:13.5px;font-weight:700;" th:text="${p.name}"></div>
+            <div th:if="${(p.techStack ?: p.technologies) != null and (p.techStack ?: p.technologies) != ''}" style="font-size:11.5px;color:#e63946;font-weight:600;margin-top:1px;" th:text="${p.techStack} ?: ${p.technologies}"></div>
+            <p th:if="${p.description != null and p.description != ''}" style="margin:4px 0 0;font-size:12px;color:#555;line-height:1.65;" th:text="${p.description}"></p>
+          </div>
+        </div>
+      </div>
+      <div style="flex:2;">
+        <div th:if="${education != null and !#lists.isEmpty(education)}" style="margin-bottom:24px;">
+          <div style="font-size:10px;font-weight:900;letter-spacing:2.5px;text-transform:uppercase;color:#1a1a1a;margin-bottom:14px;padding-bottom:8px;border-bottom:3px solid #e63946;">Education</div>
+          <div th:each="edu : ${education}" style="margin-bottom:14px;">
+            <div style="font-size:13px;font-weight:700;" th:text="${edu.degree}"></div>
+            <div th:if="${edu.field != null and edu.field != ''}" style="font-size:12px;color:#555;" th:text="${edu.field}"></div>
+            <div style="font-size:12.5px;color:#e63946;font-weight:600;" th:text="${edu.institution}"></div>
+            <div style="font-size:11px;color:#888;" th:text="${edu.startDate} + ' – ' + (${edu.endDate} ?: '')"></div>
+          </div>
+        </div>
+        <div th:if="${certifications != null and !#lists.isEmpty(certifications)}">
+          <div style="font-size:10px;font-weight:900;letter-spacing:2.5px;text-transform:uppercase;color:#1a1a1a;margin-bottom:14px;padding-bottom:8px;border-bottom:3px solid #e63946;">Certifications</div>
+          <div th:each="c : ${certifications}" style="margin-bottom:10px;">
+            <div style="font-size:12.5px;font-weight:700;" th:text="${c.name}"></div>
+            <div style="font-size:11.5px;color:#777;" th:text="${c.issuer} + (${c.date ?: c.year} != null ? ' · ' + ${c.date ?: c.year} : '')"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/><title>Resume</title></head>
+<body style="margin:0;padding:0;font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#222;">
+<div style="width:800px;margin:0 auto;background:#fff;">
+
+  <!-- EXECUTIVE HEADER with photo -->
+  <div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:44px 56px;color:#fff;display:flex;align-items:center;gap:32px;">
+    <div th:if="${photoBase64 != null and photoBase64 != ''}" style="flex-shrink:0;">
+      <img th:src="'data:image/jpeg;base64,' + ${photoBase64}" style="width:112px;height:112px;border-radius:20px;object-fit:cover;border:4px solid rgba(255,255,255,0.5);"/>
+    </div>
+    <div style="flex:1;">
+      <h1 style="margin:0 0 6px;font-size:30px;font-weight:800;" th:text="${fullName}">Your Name</h1>
+      <p style="margin:0 0 16px;font-size:14px;color:rgba(255,255,255,0.8);font-weight:500;" th:text="${targetJobTitle}">Professional Title</p>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:rgba(255,255,255,0.75);">
+        <span th:if="${email != ''}" th:text="${email}"></span>
+        <span th:if="${phone != ''}" th:text="${phone}"></span>
+        <span th:if="${address != ''}" th:text="${address}"></span>
+        <span th:if="${linkedinUrl != ''}" th:text="${linkedinUrl}"></span>
+        <span th:if="${githubUrl != ''}" th:text="${githubUrl}"></span>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:36px 48px;">
+
+    <div th:if="${summary != ''}" style="margin-bottom:30px;background:#f8f7ff;border-left:4px solid #7c3aed;padding:16px 20px;border-radius:0 8px 8px 0;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#7c3aed;margin-bottom:8px;">Professional Summary</div>
+      <p style="margin:0;font-size:13px;line-height:1.8;color:#444;" th:text="${summary}"></p>
+    </div>
+
+    <div th:if="${experience != null and !#lists.isEmpty(experience)}" style="margin-bottom:30px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#7c3aed;">Work Experience</div>
+        <div style="flex:1;height:1px;background:#e8e4ff;"></div>
+      </div>
+      <div th:each="exp : ${experience}" style="margin-bottom:22px;display:grid;grid-template-columns:1fr auto;gap:8px;">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#111;" th:text="${exp.position} ?: ${exp.role} ?: ''"></div>
+          <div style="font-size:13px;color:#7c3aed;font-weight:600;margin-top:1px;" th:text="${exp.company} + (${exp.location != null and exp.location != ''} ? ' · ' + ${exp.location} : '')"></div>
+          <div th:if="${exp.description != null and exp.description != ''}" style="margin-top:8px;font-size:12.5px;line-height:1.75;color:#555;" th:text="${exp.description}"></div>
+          <ul th:if="${exp.bullets != null and !#lists.isEmpty(exp.bullets)}" style="margin:8px 0 0;padding-left:20px;">
+            <li th:each="b : ${exp.bullets}" style="font-size:12.5px;line-height:1.75;color:#555;margin-bottom:4px;" th:text="${b}"></li>
+          </ul>
+        </div>
+        <div style="text-align:right;white-space:nowrap;">
+          <span style="font-size:11px;color:#888;background:#f3f0ff;padding:4px 10px;border-radius:20px;" th:text="${exp.startDate} + ' – ' + (${exp.current} ? 'Present' : (${exp.endDate} ?: ''))"></span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:36px;">
+
+      <div>
+        <div th:if="${education != null and !#lists.isEmpty(education)}" style="margin-bottom:26px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#7c3aed;">Education</div>
+            <div style="flex:1;height:1px;background:#e8e4ff;"></div>
+          </div>
+          <div th:each="edu : ${education}" style="margin-bottom:14px;">
+            <div style="font-size:13.5px;font-weight:700;color:#111;" th:text="${edu.degree}"></div>
+            <div th:if="${edu.field != null and edu.field != ''}" style="font-size:12px;color:#444;" th:text="${edu.field}"></div>
+            <div style="font-size:12.5px;color:#7c3aed;font-weight:600;" th:text="${edu.institution}"></div>
+            <div style="font-size:11px;color:#888;" th:text="${edu.startDate} + ' – ' + (${edu.endDate} ?: '')"></div>
+          </div>
+        </div>
+        <div th:if="${certifications != null and !#lists.isEmpty(certifications)}">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#7c3aed;">Certifications</div>
+            <div style="flex:1;height:1px;background:#e8e4ff;"></div>
+          </div>
+          <div th:each="c : ${certifications}" style="margin-bottom:10px;">
+            <div style="font-size:13px;font-weight:700;" th:text="${c.name}"></div>
+            <div style="font-size:11.5px;color:#777;" th:text="${c.issuer} + (${c.date ?: c.year} != null ? ' · ' + ${c.date ?: c.year} : '')"></div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div th:if="${skills != null and !#lists.isEmpty(skills)}" style="margin-bottom:26px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#7c3aed;">Skills</div>
+            <div style="flex:1;height:1px;background:#e8e4ff;"></div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px;">
+            <span th:each="s : ${skills}" style="background:#f3f0ff;color:#7c3aed;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;" th:text="${s}"></span>
+          </div>
+        </div>
+        <div th:if="${projects != null and !#lists.isEmpty(projects)}">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#7c3aed;">Projects</div>
+            <div style="flex:1;height:1px;background:#e8e4ff;"></div>
+          </div>
+          <div th:each="p : ${projects}" style="margin-bottom:12px;">
+            <div style="font-size:13px;font-weight:700;color:#111;" th:text="${p.name}"></div>
+            <div th:if="${(p.techStack ?: p.technologies) != null}" style="font-size:11.5px;color:#7c3aed;" th:text="${p.techStack} ?: ${p.technologies}"></div>
+            <div th:if="${p.description != null and p.description != ''}" style="font-size:12px;color:#555;margin-top:3px;line-height:1.6;" th:text="${p.description}"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body></html>
