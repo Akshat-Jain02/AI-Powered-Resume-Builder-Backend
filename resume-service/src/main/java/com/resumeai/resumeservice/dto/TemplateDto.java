@@ -20,6 +20,6 @@ public class TemplateDto {
     private int usageCount;
     private String previewBg;
     private String accentColor;
-    private String htmlTemplateName;
+    private int templateId;
     private LocalDate createdAt;
 }

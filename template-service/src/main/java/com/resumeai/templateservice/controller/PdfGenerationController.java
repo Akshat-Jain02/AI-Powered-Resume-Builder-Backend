@@ -64,7 +64,7 @@ public class PdfGenerationController {
         try {
             log.info("Generating PDF for templateId={} ({})", template.getId(), template.getName());
             byte[] pdf = pdfGenerationService.generatePdf(
-                    Math.toIntExact(template.getId()),
+                    template.getTemplateId(),
                     request.getResumeData()
             );
 
