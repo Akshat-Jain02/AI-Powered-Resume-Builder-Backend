@@ -44,13 +44,18 @@ public class PdfGenerationService {
     // ── Template dispatch ──────────────────────────────────────────────────────
 
     private String buildLatex(int id, ResumeDataDto d) {
+        log.info("Building LaTeX for template mapping id: {}", id);
         return switch (id) {
+            case 1  -> template1ClassicBlue(d);
             case 2  -> template2Editorial(d);
             case 3  -> template3DarkSidebar(d);
             case 4  -> template4PurpleExecutive(d);
             case 5  -> template5BoldRed(d);
             case 6  -> template6ATSBlue(d);
-            default -> template1ClassicBlue(d);
+            default -> {
+                log.error("Unsupported template mapping ID: {}. Falling back to Template 1.", id);
+                yield template1ClassicBlue(d);
+            }
         };
     }
 

@@ -62,9 +62,17 @@ public class PdfGenerationController {
         }
 
         try {
-            log.info("Generating PDF for templateId={} ({})", template.getId(), template.getName());
+            int internalId = template.getTemplateId();
+            if (internalId == 0) {
+                log.warn("Template entity (id={}) has uninitialized templateId (0). Falling back to database id.", template.getId());
+                internalId = template.getId().intValue();
+            }
+
+            log.info("Generating PDF: DB_ID={}, Internal_Mapping_ID={}, Name='{}'", 
+                     template.getId(), internalId, template.getName());
+            
             byte[] pdf = pdfGenerationService.generatePdf(
-                    template.getTemplateId(),
+                    internalId,
                     request.getResumeData()
             );
 

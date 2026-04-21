@@ -21,6 +21,7 @@ public class TemplateService {
 
     // ── Seed default templates on startup if DB is empty ──────────────────────
     @PostConstruct
+    @Transactional
     public void seedTemplates() {
         if (templateRepository.count() == 0) {
             log.info("Seeding default resume templates...");
@@ -44,6 +45,20 @@ public class TemplateService {
                 true, "linear-gradient(135deg, #1565c0 0%, #1e88e5 100%)", "#1565c0"));
 
             log.info("Seeded 6 default templates.");
+        } else {
+            // Repair any existing templates that have templateId = 0
+            List<ResumeTemplate> all = templateRepository.findAll();
+            long repaired = all.stream()
+                .filter(t -> t.getTemplateId() == 0)
+                .peek(t -> {
+                    log.warn("Repairing template id={} ({}): setting templateId to {}", t.getId(), t.getName(), t.getId());
+                    t.setTemplateId(t.getId().intValue());
+                })
+                .count();
+            if (repaired > 0) {
+                templateRepository.saveAll(all);
+                log.info("Repaired {} templates with uninitialized mapping IDs.", repaired);
+            }
         }
     }
 
