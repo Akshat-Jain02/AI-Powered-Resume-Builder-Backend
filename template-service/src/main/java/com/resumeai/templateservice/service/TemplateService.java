@@ -1,0 +1,110 @@
+package com.resumeai.templateservice.service;
+
+import com.resumeai.templateservice.dto.TemplateRequestDto;
+import com.resumeai.templateservice.entity.ResumeTemplate;
+import com.resumeai.templateservice.repository.ResumeTemplateRepository;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class TemplateService {
+
+    private final ResumeTemplateRepository templateRepository;
+    private final CloudinaryService cloudinaryService;
+
+    // ── Public API ─────────────────────────────────────────────────────────────
+
+    public List<ResumeTemplate> getAllActive() {
+        return templateRepository.findByIsActiveTrue();
+    }
+
+    public List<ResumeTemplate> getAll() {
+        return templateRepository.findAll();
+    }
+
+    public Optional<ResumeTemplate> getById(Long id) {
+        return templateRepository.findById(id);
+    }
+
+    public List<ResumeTemplate> getByCategory(String category) {
+        return templateRepository.findByCategoryIgnoreCase(category);
+    }
+
+    public List<ResumeTemplate> getTopByUsage() {
+        return templateRepository.findByIsActiveTrueOrderByUsageCountDesc();
+    }
+
+    // ── Admin Operations ───────────────────────────────────────────────────────
+    
+    @Transactional
+    public ResumeTemplate create(TemplateRequestDto dto, 
+                               MultipartFile latexFile,
+                               MultipartFile imageFile) throws IOException {
+        
+        ResumeTemplate t = new ResumeTemplate();
+        t.setName(dto.getName());
+        t.setCategory(dto.getCategory());
+        t.setDescription(dto.getDescription());
+        t.setPremium(dto.isPremium());
+        t.setPreviewBg(dto.getPreviewBg());
+        t.setAccentColor(dto.getAccentColor());
+        t.setActive(true);
+        t.setCreatedAt(LocalDate.now());
+        
+        // Process files
+        log.debug("Reading LaTeX content from file: {}", latexFile.getOriginalFilename());
+        t.setLatexContent(new String(latexFile.getBytes(), StandardCharsets.UTF_8));
+        
+        // Upload image to Cloudinary and store URL
+        log.info("Uploading template preview image to Cloudinary...");
+        String imageUrl = cloudinaryService.uploadFile(imageFile);
+        t.setPreviewImageUrl(imageUrl);
+        log.info("Cloudinary upload successful. URL: {}", imageUrl);
+        
+        // Set a dummy templateId for now or use the next available
+        t.setTemplateId((int) (templateRepository.count() + 1));
+        
+        log.info("Persisting new template record: {}", t.getName());
+        ResumeTemplate saved = templateRepository.save(t);
+        log.info("Template successfully created with ID: {}", saved.getId());
+        return saved;
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        if (!templateRepository.existsById(id)) {
+            throw new com.resumeai.templateservice.exception.TemplateServiceException("Template not found: " + id);
+        }
+        templateRepository.deleteById(id);
+    }
+
+    @Transactional
+    public ResumeTemplate toggleActive(Long id) {
+        ResumeTemplate t = templateRepository.findById(id)
+                .orElseThrow(() -> new com.resumeai.templateservice.exception.TemplateServiceException("Template not found: " + id));
+        t.setActive(!t.isActive());
+        log.info("Toggling activity for Template ID: {}. New status: ACTIVE={}", id, t.isActive());
+        ResumeTemplate saved = templateRepository.save(t);
+        return saved;
+    }
+
+    @Transactional
+    public void incrementUsage(Long id) {
+        templateRepository.findById(id).ifPresent(t -> {
+            t.setUsageCount(t.getUsageCount() + 1);
+            templateRepository.save(t);
+        });
+    }
+}
