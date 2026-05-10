@@ -45,7 +45,8 @@ graph TD
     Resume --> Template[Template Service: 8087]
     Resume --> Section
     
-    Template --> pdflatex((pdflatex Engine))
+    Template --> LatexCompiler[LaTeX Compiler Service: 8091]
+    LatexCompiler --> pdflatex((pdflatex Engine))
     
     Payment[Payment Service: 900] -- Kafka --> AI
     
@@ -70,6 +71,7 @@ Our ecosystem consists of specialized, independently scalable microservices:
 | **💳 Payment Service** | `900` | User credit management and Razorpay payment gateway integration. | Razorpay SDK, Kafka |
 | **💼 Job Service** | `8086` | Target job description storage, parsing, and matching logic. | JPA, MySQL |
 | **🎨 Template Svc** | `8087` | Dynamic LaTeX-based PDF template generation and Cloudinary asset management. | LaTeX, pdflatex, MySQL |
+| **📝 LaTeX Compiler** | `8091` | Dedicated microservice for processing and compiling LaTeX to PDF securely. | pdflatex, Spring Boot |
 
 ---
 
