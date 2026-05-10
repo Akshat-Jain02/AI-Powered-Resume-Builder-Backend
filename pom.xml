@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.resumeai</groupId>
+    <artifactId>resumeai-workspace</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>ResumeAI Parent Aggregator</name>
+
+    <!-- Global SonarQube Properties for the entire project -->
+    <properties>
+        <sonar.projectKey>resumeai-synchronized</sonar.projectKey>
+        <sonar.projectName>Resume AI Microservices</sonar.projectName>
+        <java.version>25</java.version>
+    </properties>
+
+    <!-- Grouping all microservices below -->
+    <modules>
+        <module>ai-service</module>
+        <module>api-gateway</module>
+        <module>auth-service</module>
+        <module>eureka-server</module>
+        <module>job-service</module>
+        <module>notification-service</module>
+        <module>payment-service</module>
+        <module>resume-service</module>
+        <module>section-service</module>
+        <module>template-service</module>
+        <module>latex-compiler-service</module>
+    </modules>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.sonarsource.scanner.maven</groupId>
+                <artifactId>sonar-maven-plugin</artifactId>
+                <version>3.11.0.3922</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>
