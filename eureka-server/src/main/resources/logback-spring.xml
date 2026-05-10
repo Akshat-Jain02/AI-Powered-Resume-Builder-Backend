@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  logback-spring.xml — eureka-server
+  Industry-standard configuration:
+    • Console  : structured pattern (ready for log-shipper ingestion)
+    • File     : daily + size-based rolling, compressed archives
+    • Error    : separate file for ERROR+ only
+    • Async    : non-blocking appenders to avoid I/O latency on request threads
+    • MDC      : traceId / requestId / service injected by RequestLoggingFilter
+    • Profiles : log level changes automatically between dev / prod
+-->
+<configuration scan="true" scanPeriod="30 seconds">
+  <!--
+    Declare Spring Boot colour and exception converters so %clr and %wEx
+    work correctly with Logback 1.4+ / Spring Boot 3.x.
+    These classes ship inside spring-boot-X.X.X.jar.
+  -->
+  <conversionRule conversionWord="clr"  converterClass="org.springframework.boot.logging.logback.ColorConverter"/>
+  <conversionRule conversionWord="wEx"  converterClass="org.springframework.boot.logging.logback.WhitespaceThrowableProxyConverter"/>
+  <conversionRule conversionWord="wex"  converterClass="org.springframework.boot.logging.logback.WhitespaceThrowableProxyConverter"/>
+
+
+
+  <!-- ════════════════════════════════════════════════════════════
+       Properties
+  ════════════════════════════════════════════════════════════ -->
+  <springProperty scope="context" name="APP_NAME"     source="spring.application.name" defaultValue="eureka-server"/>
+  <springProperty scope="context" name="LOG_DIR"      source="logging.file.path"       defaultValue="../logs/${APP_NAME}"/>
+  <springProperty scope="context" name="LOG_LEVEL"    source="logging.level.root"      defaultValue="INFO"/>
+  <springProperty scope="context" name="PKG_LEVEL"    source="logging.level.app"       defaultValue="INFO"/>
+
+  <!-- ════════════════════════════════════════════════════════════
+       Patterns
+       %X{traceId}  — populated by RequestLoggingFilter via MDC
+       %X{requestId} — UUID per HTTP request
+  ════════════════════════════════════════════════════════════ -->
+  <property name="CONSOLE_PATTERN"
+            value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${APP_NAME}){cyan} %clr(---) %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} [%X{traceId:-no-trace} | %X{requestId:-no-req}] %m%n%wEx"/>
+
+  <property name="FILE_PATTERN"
+            value="%d{yyyy-MM-dd HH:mm:ss.SSS} %5p ${APP_NAME} --- [%t] %-40.40logger{39} : [%X{traceId:-no-trace} | %X{requestId:-no-req}] %m%n%wEx"/>
+
+  <!-- ════════════════════════════════════════════════════════════
+       APPENDER 1 — Console  (always on)
+  ════════════════════════════════════════════════════════════ -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>${CONSOLE_PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+  </appender>
+
+  <!-- ════════════════════════════════════════════════════════════
+       APPENDER 2 — Rolling File  (all levels ≥ INFO)
+       Policy : roll daily AND when file exceeds 50 MB
+       Keep   : 30 daily files, total cap 2 GB
+       Archive: .gz compressed automatically
+  ════════════════════════════════════════════════════════════ -->
+  <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/${APP_NAME}.log</file>
+    <encoder>
+      <pattern>${FILE_PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <!-- Daily roll; %i = sequence index within same day when size cap hit -->
+      <fileNamePattern>${LOG_DIR}/archived/${APP_NAME}-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      <maxFileSize>50MB</maxFileSize>
+      <maxHistory>30</maxHistory>
+      <totalSizeCap>2GB</totalSizeCap>
+      <cleanHistoryOnStart>false</cleanHistoryOnStart>
+    </rollingPolicy>
+    <!-- Only log INFO and above in the main file -->
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>INFO</level>
+    </filter>
+  </appender>
+
+  <!-- ════════════════════════════════════════════════════════════
+       APPENDER 3 — Error Rolling File  (ERROR only)
+       Keeps a dedicated stream of errors for alerting / monitoring
+  ════════════════════════════════════════════════════════════ -->
+  <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/${APP_NAME}-error.log</file>
+    <encoder>
+      <pattern>${FILE_PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_DIR}/archived/${APP_NAME}-error-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      <maxFileSize>20MB</maxFileSize>
+      <maxHistory>60</maxHistory>
+      <totalSizeCap>1GB</totalSizeCap>
+    </rollingPolicy>
+    <!-- Strictly ERROR+ only -->
+    <filter class="ch.qos.logback.classic.filter.LevelFilter">
+      <level>ERROR</level>
+      <onMatch>ACCEPT</onMatch>
+      <onMismatch>DENY</onMismatch>
+    </filter>
+  </appender>
+
+  <!-- ════════════════════════════════════════════════════════════
+       ASYNC wrappers — decouples file I/O from request threads
+       queueSize=512 : events buffered before blocking
+       discardingThreshold=0 : never silently drop events (set >0 in very high-load prod)
+  ════════════════════════════════════════════════════════════ -->
+  <appender name="ASYNC_ROLLING" class="ch.qos.logback.classic.AsyncAppender">
+    <queueSize>512</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <includeCallerData>false</includeCallerData>
+    <appender-ref ref="ROLLING_FILE"/>
+  </appender>
+
+  <appender name="ASYNC_ERROR" class="ch.qos.logback.classic.AsyncAppender">
+    <queueSize>256</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <includeCallerData>true</includeCallerData>
+    <appender-ref ref="ERROR_FILE"/>
+  </appender>
+
+  <!-- ════════════════════════════════════════════════════════════
+       Package-level tuning — suppress noisy framework logs
+  ════════════════════════════════════════════════════════════ -->
+  <!-- Application packages — verbose in dev, INFO in prod (overridden by profiles) -->
+  <logger name="com.resumeai" level="INFO" additivity="false">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="ASYNC_ROLLING"/>
+    <appender-ref ref="ASYNC_ERROR"/>
+  </logger>
+
+  <!-- Spring internals — WARN unless debugging -->
+  <logger name="org.springframework"                  level="WARN"/>
+  <logger name="org.springframework.web.servlet"      level="WARN"/>
+  <logger name="org.springframework.security"         level="WARN"/>
+  <logger name="org.springframework.cloud"            level="WARN"/>
+
+  <!-- Hibernate / JPA — only errors in production -->
+  <logger name="org.hibernate"                        level="WARN"/>
+  <logger name="org.hibernate.SQL"                    level="WARN"/>
+  <logger name="org.hibernate.type.descriptor.sql"   level="WARN"/>
+
+  <!-- Eureka client heartbeat spam suppression -->
+  <logger name="com.netflix.discovery"               level="WARN"/>
+  <logger name="com.netflix.eureka"                  level="WARN"/>
+
+  <!-- Feign HTTP client — INFO shows outbound calls -->
+  <logger name="feign"                               level="INFO"/>
+
+  <!-- Netty / Reactor (relevant for reactive services) -->
+  <logger name="reactor.netty"                       level="WARN"/>
+  <logger name="io.netty"                            level="WARN"/>
+
+  <!-- ════════════════════════════════════════════════════════════
+       Spring Profile overrides
+       dev  → DEBUG for app package, SQL visible
+       prod → INFO for app package, no SQL, no HTTP debug
+  ════════════════════════════════════════════════════════════ -->
+  <springProfile name="dev">
+    <logger name="com.resumeai" level="DEBUG" additivity="false">
+      <appender-ref ref="CONSOLE"/>
+      <appender-ref ref="ASYNC_ROLLING"/>
+      <appender-ref ref="ASYNC_ERROR"/>
+    </logger>
+    <logger name="org.hibernate.SQL"                level="DEBUG"/>
+    <logger name="org.hibernate.type.descriptor.sql" level="TRACE"/>
+    <logger name="org.springframework.web"          level="DEBUG"/>
+    <root level="INFO">
+      <appender-ref ref="CONSOLE"/>
+      <appender-ref ref="ASYNC_ROLLING"/>
+      <appender-ref ref="ASYNC_ERROR"/>
+    </root>
+  </springProfile>
+
+  <springProfile name="prod">
+    <logger name="com.resumeai" level="INFO" additivity="false">
+      <appender-ref ref="CONSOLE"/>
+      <appender-ref ref="ASYNC_ROLLING"/>
+      <appender-ref ref="ASYNC_ERROR"/>
+    </logger>
+    <logger name="org.springframework.security"    level="ERROR"/>
+    <logger name="feign"                           level="WARN"/>
+    <root level="WARN">
+      <appender-ref ref="CONSOLE"/>
+      <appender-ref ref="ASYNC_ROLLING"/>
+      <appender-ref ref="ASYNC_ERROR"/>
+    </root>
+  </springProfile>
+
+  <!-- ════════════════════════════════════════════════════════════
+       Root logger — catch-all for anything not matched above
+  ════════════════════════════════════════════════════════════ -->
+  <root level="${LOG_LEVEL}">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="ASYNC_ROLLING"/>
+    <appender-ref ref="ASYNC_ERROR"/>
+  </root>
+
+</configuration>

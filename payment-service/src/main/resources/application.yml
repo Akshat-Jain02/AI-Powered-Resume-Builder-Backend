@@ -1,0 +1,76 @@
+server:
+  port: 900
+
+spring:
+  application:
+    name: payment-service
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/resumeai_payment
+    username: root
+    password: ${DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  # ── Kafka ──────────────────────────────────────────────────────────────────
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+        acks: all
+        retries: 3
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${random.value}
+    hostname: localhost
+# Razorpay Configuration
+razorpay:
+  key:
+    id: ${RAZOR_PAY_ID}
+    secret: ${RAZOR_PAY_SECRET}
+  currency: INR
+  company:
+    name: ResumeAI
+    logo: https://yourcompany.com/logo.png
+
+# Payment Plans
+payment:
+  plans:
+    basic:
+      price: 99
+      credits: 10
+      name: Basic Pack
+      description: 10 AI-powered resume analyses
+    pro:
+      price: 249
+      credits: 30
+      name: Pro Pack
+      description: 30 AI-powered resume analyses + priority support
+    premium:
+      price: 499
+      credits: 100
+      name: Premium Pack
+      description: 100 AI-powered resume analyses + premium features
+
+# ── Logging ──────────────────────────────────────────────────────────────────
+logging:
+  file:
+    path: ../logs/payment-service

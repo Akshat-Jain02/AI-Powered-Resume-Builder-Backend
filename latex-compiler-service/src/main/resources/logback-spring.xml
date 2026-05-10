@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  logback-spring.xml — latex-compiler-service
+  Industry-standard configuration:
+    • Console  : structured pattern (ready for log-shipper ingestion)
+    • File     : daily + size-based rolling, compressed archives
+    • Error    : separate file for ERROR+ only
+    • Async    : non-blocking appenders to avoid I/O latency on request threads
+    • MDC      : traceId / requestId / service injected by RequestLoggingFilter
+    • Profiles : log level changes automatically between dev / prod
+-->
+<configuration scan="true" scanPeriod="30 seconds">
+  <conversionRule conversionWord="clr"  converterClass="org.springframework.boot.logging.logback.ColorConverter"/>
+  <conversionRule conversionWord="wEx"  converterClass="org.springframework.boot.logging.logback.WhitespaceThrowableProxyConverter"/>
+  <conversionRule conversionWord="wex"  converterClass="org.springframework.boot.logging.logback.WhitespaceThrowableProxyConverter"/>
+
+  <!-- Properties -->
+  <springProperty scope="context" name="APP_NAME"     source="spring.application.name" defaultValue="latex-compiler-service"/>
+  <springProperty scope="context" name="LOG_DIR"      source="logging.file.path"       defaultValue="../logs/${APP_NAME}"/>
+  <springProperty scope="context" name="LOG_LEVEL"    source="logging.level.root"      defaultValue="INFO"/>
+  <springProperty scope="context" name="PKG_LEVEL"    source="logging.level.app"       defaultValue="INFO"/>
+
+  <!-- Patterns -->
+  <property name="CONSOLE_PATTERN"
+            value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${APP_NAME}){cyan} %clr(---) %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} [%X{traceId:-no-trace} | %X{requestId:-no-req}] %m%n%wEx"/>
+
+  <property name="FILE_PATTERN"
+            value="%d{yyyy-MM-dd HH:mm:ss.SSS} %5p ${APP_NAME} --- [%t] %-40.40logger{39} : [%X{traceId:-no-trace} | %X{requestId:-no-req}] %m%n%wEx"/>
+
+  <!-- APPENDER 1 — Console -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>${CONSOLE_PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+  </appender>
+
+  <!-- APPENDER 2 — Rolling File (INFO+) -->
+  <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/${APP_NAME}.log</file>
+    <encoder>
+      <pattern>${FILE_PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_DIR}/archived/${APP_NAME}-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      <maxFileSize>50MB</maxFileSize>
+      <maxHistory>30</maxHistory>
+      <totalSizeCap>2GB</totalSizeCap>
+    </rollingPolicy>
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>INFO</level>
+    </filter>
+  </appender>
+
+  <!-- APPENDER 3 — Error Rolling File (ERROR only) -->
+  <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/${APP_NAME}-error.log</file>
+    <encoder>
+      <pattern>${FILE_PATTERN}</pattern>
+      <charset>UTF-8</charset>
+    </encoder>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_DIR}/archived/${APP_NAME}-error-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      <maxFileSize>20MB</maxFileSize>
+      <maxHistory>60</maxHistory>
+      <totalSizeCap>1GB</totalSizeCap>
+    </rollingPolicy>
+    <filter class="ch.qos.logback.classic.filter.LevelFilter">
+      <level>ERROR</level>
+      <onMatch>ACCEPT</onMatch>
+      <onMismatch>DENY</onMismatch>
+    </filter>
+  </appender>
+
+  <!-- ASYNC wrappers -->
+  <appender name="ASYNC_ROLLING" class="ch.qos.logback.classic.AsyncAppender">
+    <queueSize>512</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <includeCallerData>false</includeCallerData>
+    <appender-ref ref="ROLLING_FILE"/>
+  </appender>
+
+  <appender name="ASYNC_ERROR" class="ch.qos.logback.classic.AsyncAppender">
+    <queueSize>256</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <includeCallerData>true</includeCallerData>
+    <appender-ref ref="ERROR_FILE"/>
+  </appender>
+
+  <!-- Package-level tuning -->
+  <logger name="com.latexcompiler.latexcompiler" level="INFO" additivity="false">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="ASYNC_ROLLING"/>
+    <appender-ref ref="ASYNC_ERROR"/>
+  </logger>
+
+  <logger name="org.springframework"                  level="WARN"/>
+  <logger name="org.hibernate"                        level="WARN"/>
+  <logger name="com.netflix.discovery"               level="WARN"/>
+  <logger name="com.netflix.eureka"                  level="WARN"/>
+
+  <!-- Spring Profile overrides -->
+  <springProfile name="dev">
+    <logger name="com.latexcompiler.latexcompiler" level="DEBUG" additivity="false">
+      <appender-ref ref="CONSOLE"/>
+      <appender-ref ref="ASYNC_ROLLING"/>
+      <appender-ref ref="ASYNC_ERROR"/>
+    </logger>
+    <root level="INFO">
+      <appender-ref ref="CONSOLE"/>
+      <appender-ref ref="ASYNC_ROLLING"/>
+      <appender-ref ref="ASYNC_ERROR"/>
+    </root>
+  </springProfile>
+
+  <springProfile name="prod">
+    <root level="WARN">
+      <appender-ref ref="CONSOLE"/>
+      <appender-ref ref="ASYNC_ROLLING"/>
+      <appender-ref ref="ASYNC_ERROR"/>
+    </root>
+  </springProfile>
+
+  <!-- Root logger -->
+  <root level="${LOG_LEVEL}">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="ASYNC_ROLLING"/>
+    <appender-ref ref="ASYNC_ERROR"/>
+  </root>
+
+</configuration>
