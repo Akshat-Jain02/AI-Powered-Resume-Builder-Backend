@@ -1,0 +1,14 @@
+FROM debian:bullseye-slim
+
+# Install TeX Live and basic tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    texlive-full \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /data
+
+# Set non-root user for security (optional but recommended)
+# RUN useradd -m latexuser
+# USER latexuser
+
+CMD ["pdflatex"]
