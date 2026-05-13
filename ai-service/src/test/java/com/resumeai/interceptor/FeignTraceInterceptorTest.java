@@ -1,7 +1,6 @@
-package com.resumeai.resumeservice.interceptor;
+package com.resumeai.interceptor;
 
 import feign.RequestTemplate;
-import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,16 +14,15 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 
-class FeignAuthInterceptorTest {
+class FeignTraceInterceptorTest {
 
-    private FeignAuthInterceptor interceptor;
+    private FeignTraceInterceptor interceptor;
     private RequestTemplate template;
 
     @BeforeEach
     void setUp() {
-        interceptor = new FeignAuthInterceptor();
+        interceptor = new FeignTraceInterceptor();
         template = new RequestTemplate();
         MDC.clear();
         RequestContextHolder.resetRequestAttributes();
@@ -37,44 +35,7 @@ class FeignAuthInterceptorTest {
     }
 
     @Test
-    void apply_withHeaders_forwardsThem() {
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-Username", "testuser");
-        request.addHeader("X-Roles", "USER");
-        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
-
-        interceptor.apply(template);
-
-        Map<String, Collection<String>> headers = template.headers();
-        assertTrue(headers.containsKey("X-Username"));
-        assertTrue(headers.containsKey("X-Roles"));
-        assertEquals("testuser", headers.get("X-Username").iterator().next());
-        assertEquals("USER", headers.get("X-Roles").iterator().next());
-    }
-
-    @Test
-    void apply_noAttributes_doesNotSetUserHeaders() {
-        RequestContextHolder.resetRequestAttributes();
-        interceptor.apply(template);
-        Map<String, Collection<String>> headers = template.headers();
-        assertFalse(headers.containsKey("X-Username"));
-        assertFalse(headers.containsKey("X-Roles"));
-    }
-
-    @Test
-    void apply_noHeaders_doesNotAddHeaders() {
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
-
-        interceptor.apply(template);
-
-        Map<String, Collection<String>> headers = template.headers();
-        assertFalse(headers.containsKey("X-Username"));
-        assertFalse(headers.containsKey("X-Roles"));
-    }
-
-    @Test
-    void apply_WithMdcValues_SetsTraceHeaders() {
+    void apply_WithMdcValues_SetsHeaders() {
         MDC.put("traceId", "test-trace");
         MDC.put("requestId", "test-req");
 
@@ -123,12 +84,12 @@ class FeignAuthInterceptorTest {
     }
 
     @Test
-    void apply_WithoutMdcAndWithoutRequestAttributes_DoesNotSetTraceHeaders() {
+    void apply_WithoutMdcAndWithoutRequestAttributes_DoesNotSetHeaders() {
         interceptor.apply(template);
 
         Map<String, Collection<String>> headers = template.headers();
-        assertFalse(headers.containsKey("X-Trace-Id"));
-        assertFalse(headers.containsKey("X-Request-Id"));
+        assertTrue(!headers.containsKey("X-Trace-Id"));
+        assertTrue(!headers.containsKey("X-Request-Id"));
     }
 
     @Test
@@ -139,7 +100,7 @@ class FeignAuthInterceptorTest {
 
         Map<String, Collection<String>> headers = template.headers();
         assertTrue(headers.containsKey("X-Trace-Id"));
-        assertFalse(headers.containsKey("X-Request-Id"));
+        assertTrue(!headers.containsKey("X-Request-Id"));
     }
 
     @Test
@@ -149,7 +110,7 @@ class FeignAuthInterceptorTest {
         interceptor.apply(template);
 
         Map<String, Collection<String>> headers = template.headers();
-        assertFalse(headers.containsKey("X-Trace-Id"));
+        assertTrue(!headers.containsKey("X-Trace-Id"));
         assertTrue(headers.containsKey("X-Request-Id"));
     }
 }

@@ -67,25 +67,25 @@ class GeminiServiceTest {
     }
 
     @Test
-    void analyzeResume_jsonProcessingException_returnsNull() throws Exception {
+    void analyzeResume_jsonProcessingException_throwsAiServiceException() throws Exception {
         GenerateContentResponse response = mock(GenerateContentResponse.class);
         when(response.text()).thenReturn("invalid-json");
 
         when(models.generateContent(anyString(), anyString(), any())).thenReturn(response);
         when(objectMapper.readValue(anyString(), eq(ResumeAnalysis.class))).thenThrow(new JsonProcessingException("error") {});
 
-        ResumeAnalysis result = geminiService.analyzeResume("text");
-
-        assertNull(result);
+        assertThrows(com.resumeai.exception.AiServiceException.class, () -> 
+            geminiService.analyzeResume("text")
+        );
     }
 
     @Test
-    void analyzeResume_genericException_returnsNull() {
+    void analyzeResume_genericException_throwsAiServiceException() {
         when(client.models.generateContent(anyString(), anyString(), any())).thenThrow(new RuntimeException("API error"));
 
-        ResumeAnalysis result = geminiService.analyzeResume("text");
-
-        assertNull(result);
+        assertThrows(com.resumeai.exception.AiServiceException.class, () -> 
+            geminiService.analyzeResume("text")
+        );
     }
 
     @Test
@@ -106,13 +106,14 @@ class GeminiServiceTest {
     }
 
     @Test
-    void getATSScore_exception_returnsNull() {
+    void getATSScore_exception_throwsAiServiceException() {
         when(client.models.generateContent(anyString(), anyString(), any())).thenThrow(new RuntimeException("error"));
 
-        ATSScoreDTO result = geminiService.getATSScore("text");
-
-        assertNull(result);
+        assertThrows(com.resumeai.exception.AiServiceException.class, () -> 
+            geminiService.getATSScore("text")
+        );
     }
+
 
     @Test
     void cleanJson_withMarkdownFences_stripsThem() {

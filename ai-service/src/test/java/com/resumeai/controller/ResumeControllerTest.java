@@ -125,26 +125,26 @@ class ResumeControllerTest {
     void uploadResume_geminiError() throws Exception {
         when(paymentClient.checkCredits(anyString(), anyInt())).thenReturn(Map.of("hasCredits", true));
         when(parserClient.extractText(any())).thenReturn("text");
-        when(geminiService.analyzeResume(anyString())).thenReturn(null);
+        when(geminiService.analyzeResume(anyString())).thenThrow(new com.resumeai.exception.AiServiceException("Gemini error"));
 
         mockMvc.perform(multipart("/api/ai/summary")
                 .file(file)
                 .header("X-Username", "testuser"))
                 .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.error", containsString("analysis failed")));
+                .andExpect(jsonPath("$.error", containsString("AI analysis failed")));
     }
 
     @Test
     void getAtsScore_geminiError() throws Exception {
         when(paymentClient.checkCredits(anyString(), anyInt())).thenReturn(Map.of("hasCredits", true));
         when(parserClient.extractText(any())).thenReturn("text");
-        when(geminiService.getATSScore(anyString())).thenReturn(null);
+        when(geminiService.getATSScore(anyString())).thenThrow(new com.resumeai.exception.AiServiceException("Gemini error"));
 
         mockMvc.perform(multipart("/api/ai/ats/score")
                 .file(file)
                 .header("X-Username", "testuser"))
                 .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.error", containsString("Failed to generate ATS score")));
+                .andExpect(jsonPath("$.error", containsString("ATS scoring failed")));
     }
 
     @Test
@@ -156,7 +156,7 @@ class ResumeControllerTest {
                 .file(file)
                 .header("X-Username", "testuser"))
                 .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.error", containsString("Failed to process resume")));
+                .andExpect(jsonPath("$.error", containsString("unexpected error occurred while processing the resume")));
     }
 
     @Test
@@ -201,7 +201,7 @@ class ResumeControllerTest {
                 .file(file)
                 .header("X-Username", "testuser"))
                 .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.error", containsString("Failed to process ATS score")));
+                .andExpect(jsonPath("$.error", containsString("unexpected error occurred while generating the ATS score")));
     }
 
     @Test

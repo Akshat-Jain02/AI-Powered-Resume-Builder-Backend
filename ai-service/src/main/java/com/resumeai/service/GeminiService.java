@@ -60,10 +60,10 @@ public class GeminiService {
             return objectMapper.readValue(text, ResumeAnalysis.class);
         } catch (JsonProcessingException e) {
             log.error("Failed to parse Gemini response for analyzeResume: {}", e.getMessage());
-            return null;
+            throw new com.resumeai.exception.AiServiceException("Failed to process AI analysis response", e);
         } catch (Exception e) {
             log.error("Gemini API call failed: {}", e.getMessage());
-            return null;
+            throw new com.resumeai.exception.AiServiceException("Gemini AI service communication failed", e);
         }
     }
 
@@ -94,12 +94,13 @@ public class GeminiService {
             return objectMapper.readValue(text, ATSScoreDTO.class);
         } catch (JsonProcessingException e) {
             log.error("Failed to parse Gemini response for getATSScore: {}", e.getMessage());
-            return null;
+            throw new com.resumeai.exception.AiServiceException("Failed to process ATS score response", e);
         } catch (Exception e) {
             log.error("Gemini API call failed: {}", e.getMessage());
-            return null;
+            throw new com.resumeai.exception.AiServiceException("Gemini AI service scoring failed", e);
         }
     }
+
 
     /** Strip markdown code fences and leading/trailing whitespace from Gemini output */
     private String cleanJson(String raw) {
