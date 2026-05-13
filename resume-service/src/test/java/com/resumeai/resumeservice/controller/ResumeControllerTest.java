@@ -57,7 +57,7 @@ class ResumeControllerTest {
 
     @Test
     void generatePdf_serviceThrows_returns500() throws Exception {
-        when(resumeService.generatePdf(any())).thenThrow(new RuntimeException("template-service down"));
+        when(resumeService.generatePdf(any())).thenThrow(new com.resumeai.resumeservice.exception.ResumeServiceException("template-service down"));
 
         mockMvc.perform(post("/api/resume/generate").with(csrf())
                 .header("X-Username", "alice")
@@ -146,7 +146,7 @@ class ResumeControllerTest {
 
     @Test
     void deleteSaved_notFound_returns404() throws Exception {
-        doThrow(new RuntimeException("not found")).when(resumeService).deleteSavedResume(999L, "alice");
+        doThrow(new IllegalArgumentException("not found")).when(resumeService).deleteSavedResume(999L, "alice");
 
         mockMvc.perform(delete("/api/resume/saved/999").with(csrf())
                 .header("X-Username", "alice"))
@@ -189,7 +189,7 @@ class ResumeControllerTest {
 
     @Test
     void downloadSaved_failure_returns404() throws Exception {
-        when(resumeService.regeneratePdfForSaved(999L, "alice")).thenThrow(new RuntimeException("not found"));
+        when(resumeService.regeneratePdfForSaved(999L, "alice")).thenThrow(new IllegalArgumentException("not found"));
 
         mockMvc.perform(get("/api/resume/saved/999/download").header("X-Username", "alice"))
                 .andExpect(status().isNotFound());

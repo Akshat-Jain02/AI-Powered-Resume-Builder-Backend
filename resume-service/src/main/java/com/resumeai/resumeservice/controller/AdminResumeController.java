@@ -71,9 +71,9 @@ public class AdminResumeController {
             @ApiResponse(responseCode = "404", description = "Resume not found")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<?> getResumeById(@PathVariable Long id) {
+    public ResponseEntity<Object> getResumeById(@PathVariable Long id) {
         return savedResumeRepository.findById(id)
-                .map(ResponseEntity::ok)
+                .<ResponseEntity<Object>>map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -87,14 +87,14 @@ public class AdminResumeController {
             @ApiResponse(responseCode = "404", description = "Resume not found")
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteResume(
+    public ResponseEntity<Object> deleteResume(
             @PathVariable Long id,
             @RequestHeader(value = "X-Username", required = false) String adminUsername) {
 
         return savedResumeRepository.findById(id).map(r -> {
             savedResumeRepository.delete(r);
             log.warn("Admin '{}' deleted resume id={} owned by '{}'", adminUsername, id, r.getUsername());
-            return ResponseEntity.ok(Map.of(
+            return ResponseEntity.ok((Object) Map.of(
                     "message", "Resume " + id + " deleted",
                     "formerOwner", r.getUsername() != null ? r.getUsername() : "unknown"
             ));

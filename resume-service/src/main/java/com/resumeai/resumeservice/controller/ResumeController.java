@@ -7,6 +7,7 @@ import com.resumeai.resumeservice.service.ResumeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -77,7 +78,7 @@ public class ResumeController {
             @ApiResponse(responseCode = "500", description = "PDF generation failed")
     })
     @PostMapping("/generate")
-    public ResponseEntity<?> generatePdf(
+    public ResponseEntity<Object> generatePdf(
             @RequestHeader(value = "X-Username", required = false) String xUsername,
             @Valid @RequestBody GeneratePdfRequest request) {
         try {
@@ -86,9 +87,14 @@ public class ResumeController {
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=resume.pdf")
                     .contentType(MediaType.APPLICATION_PDF)
                     .body(pdf);
-        } catch (Exception e) {
+        } catch (com.resumeai.resumeservice.exception.ResumeServiceException e) {
+            log.error("PDF generation failed: {}", e.getMessage());
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "PDF generation failed: " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("Unexpected error during PDF generation", e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "An unexpected error occurred during PDF generation."));
         }
     }
 
@@ -105,7 +111,7 @@ public class ResumeController {
             @ApiResponse(responseCode = "401", description = "Unauthorized")
     })
     @PostMapping("/save")
-    public ResponseEntity<?> saveResume(
+    public ResponseEntity<Object> saveResume(
             @RequestHeader(value = "X-Username", required = false) String xUsername,
             @Valid @RequestBody GeneratePdfRequest request) {
         try {
@@ -113,11 +119,14 @@ public class ResumeController {
             SavedResume saved = resumeService.saveResume(request, username);
             return ResponseEntity.ok(saved);
         } catch (SecurityException e) {
-            return ResponseEntity.status(401).body(Map.of("error", e.getMessage()));
-        } catch (RuntimeException e) {
+            log.warn("Security violation while saving resume: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid save request: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to save resume"));
+            log.error("Failed to save resume", e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to save resume. Please try again later."));
         }
     }
 
@@ -134,7 +143,7 @@ public class ResumeController {
             @ApiResponse(responseCode = "500", description = "Save-and-download failed")
     })
     @PostMapping("/save-and-download")
-    public ResponseEntity<?> saveAndDownload(
+    public ResponseEntity<Object> saveAndDownload(
             @RequestHeader(value = "X-Username", required = false) String xUsername,
             @Valid @RequestBody GeneratePdfRequest request) {
         try {
@@ -146,10 +155,12 @@ public class ResumeController {
                     .contentType(MediaType.APPLICATION_PDF)
                     .body(pdf);
         } catch (SecurityException e) {
-            return ResponseEntity.status(401).body(Map.of("error", e.getMessage()));
+            log.warn("Security violation during save-and-download: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
+            log.error("Save-and-download failed: {}", e.getMessage());
             return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Save-and-download failed: " + e.getMessage()));
+                    .body(Map.of("error", "Save-and-download failed."));
         }
     }
 
@@ -163,14 +174,15 @@ public class ResumeController {
     @ApiResponse(responseCode = "200", description = "List of saved resumes retrieved successfully")
     @ApiResponse(responseCode = "401", description = "Unauthorized")
     @GetMapping("/saved")
-    public ResponseEntity<?> getAllSaved(
+    public ResponseEntity<Object> getAllSaved(
             @RequestHeader(value = "X-Username", required = false) String xUsername) {
         try {
             String username = currentUser(xUsername);
             List<SavedResume> resumes = resumeService.getSavedResumesByUser(username);
             return ResponseEntity.ok(resumes);
         } catch (SecurityException e) {
-            return ResponseEntity.status(401).body(Map.of("error", e.getMessage()));
+            log.warn("Security violation while listing resumes: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -187,16 +199,17 @@ public class ResumeController {
             @ApiResponse(responseCode = "404", description = "Resume not found")
     })
     @GetMapping("/saved/{id}")
-    public ResponseEntity<?> getSavedById(
+    public ResponseEntity<Object> getSavedById(
             @RequestHeader(value = "X-Username", required = false) String xUsername,
             @PathVariable Long id) {
         try {
             String username = currentUser(xUsername);
             return resumeService.getSavedResumeByIdAndUser(id, username)
-                    .map(ResponseEntity::ok)
+                    .<ResponseEntity<Object>>map(ResponseEntity::ok)
                     .orElse(ResponseEntity.notFound().build());
         } catch (SecurityException e) {
-            return ResponseEntity.status(401).body(Map.of("error", e.getMessage()));
+            log.warn("Security violation while getting resume {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -213,7 +226,7 @@ public class ResumeController {
             @ApiResponse(responseCode = "404", description = "Resume data not found")
     })
     @GetMapping("/saved/{id}/data")
-    public ResponseEntity<?> getSavedData(
+    public ResponseEntity<Object> getSavedData(
             @RequestHeader(value = "X-Username", required = false) String xUsername,
             @PathVariable Long id) {
         try {
@@ -221,8 +234,10 @@ public class ResumeController {
             ResumeDataDto data = resumeService.getSavedResumeData(id, username);
             return ResponseEntity.ok(data);
         } catch (SecurityException e) {
-            return ResponseEntity.status(401).body(Map.of("error", e.getMessage()));
+            log.warn("Security violation while getting data for resume {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
+            log.warn("Resume data not found for ID: {} User: {}", id, xUsername);
             return ResponseEntity.notFound().build();
         }
     }
@@ -242,7 +257,7 @@ public class ResumeController {
             @ApiResponse(responseCode = "500", description = "Failed to generate PDF")
     })
     @GetMapping("/saved/{id}/download")
-    public ResponseEntity<?> downloadSaved(
+    public ResponseEntity<Object> downloadSaved(
             @RequestHeader(value = "X-Username", required = false) String xUsername,
             @PathVariable Long id) {
         try {
@@ -254,12 +269,15 @@ public class ResumeController {
                     .contentType(MediaType.APPLICATION_PDF)
                     .body(pdf);
         } catch (SecurityException e) {
-            return ResponseEntity.status(401).body(Map.of("error", e.getMessage()));
-        } catch (RuntimeException e) {
+            log.warn("Security violation while downloading resume {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            log.warn("Resume not found for download: {}", e.getMessage());
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
+            log.error("Failed to generate PDF for resume {}: {}", id, e.getMessage());
             return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "Failed to generate PDF for resume " + id));
+                    .body(Map.of("error", "Failed to generate PDF for resume."));
         }
     }
 
@@ -276,7 +294,7 @@ public class ResumeController {
             @ApiResponse(responseCode = "404", description = "Resume not found")
     })
     @DeleteMapping("/saved/{id}")
-    public ResponseEntity<?> deleteSaved(
+    public ResponseEntity<Object> deleteSaved(
             @RequestHeader(value = "X-Username", required = false) String xUsername,
             @PathVariable Long id) {
         try {
@@ -284,11 +302,17 @@ public class ResumeController {
             resumeService.deleteSavedResume(id, username);
             return ResponseEntity.ok(Map.of("message", "Resume " + id + " deleted"));
         } catch (SecurityException e) {
-            return ResponseEntity.status(401).body(Map.of("error", e.getMessage()));
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
+            log.warn("Security violation while deleting resume {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            log.warn("Delete failed - resume not found: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Unexpected error deleting resume {}", id, e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to delete resume."));
         }
     }
+
 
     // ── Admin / Analytics ──────────────────────────────────────────────────────
 

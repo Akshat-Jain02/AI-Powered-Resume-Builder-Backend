@@ -1,7 +1,6 @@
 package com.resumeai.resumeservice.interceptor;
 
 import feign.RequestTemplate;
-import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
