@@ -276,7 +276,7 @@ class LaTeXCompilerServiceTest {
     }
 
     @Test
-    void testIsDockerImageAvailable_Exception() throws IOException {
+    void testIsDockerImageAvailable_Exception() {
         LaTeXCompilerService exceptionService = new LaTeXCompilerService() {
             @Override
             boolean isDockerImageAvailable() {
