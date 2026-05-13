@@ -158,10 +158,10 @@ public class PaymentService {
                                                    PaymentVerificationRequest request) {
 
         Payment payment = paymentRepository.findByOrderId(request.getOrderId())
-            .orElseThrow(() -> new RuntimeException("Payment not found: " + request.getOrderId()));
+            .orElseThrow(() -> new IllegalArgumentException("Payment not found: " + request.getOrderId()));
 
         if (!payment.getUsername().equals(username))
-            throw new RuntimeException("Payment does not belong to user: " + username);
+            throw new com.resumeai.payment.exception.PaymentSecurityException("Payment does not belong to user: " + username);
 
         PlanDetails plan = getPlanByType(payment.getPlanType());
         String planName = plan != null ? plan.getName() : payment.getPlanType();
@@ -208,7 +208,8 @@ public class PaymentService {
                 .orderId(payment.getOrderId())
                 .creditsGranted(payment.getCreditsGranted()).build();
 
-        } catch (Exception e) {
+        } catch (com.resumeai.payment.exception.PaymentProcessingException e) {
+            log.error("Payment processing error: {}", e.getMessage());
             payment.setStatus(Payment.PaymentStatus.FAILED);
             payment.setFailureReason(e.getMessage());
             paymentRepository.save(payment);
@@ -216,6 +217,11 @@ public class PaymentService {
                 username, userEmail, payment.getOrderId(), planName, e.getMessage()));
             return PaymentResponse.builder().success(false)
                 .message("Payment verification failed: " + e.getMessage())
+                .orderId(payment.getOrderId()).build();
+        } catch (Exception e) {
+            log.error("Unexpected error during payment verification", e);
+            return PaymentResponse.builder().success(false)
+                .message("An internal error occurred during payment verification.")
                 .orderId(payment.getOrderId()).build();
         }
     }
@@ -233,10 +239,15 @@ public class PaymentService {
             mac.init(new SecretKeySpec(razorpayKeySecret.getBytes(), "HmacSHA256"));
             byte[] hash = mac.doFinal(payload.getBytes());
             return bytesToHex(hash).equals(signature);
+        } catch (java.security.NoSuchAlgorithmException | java.security.InvalidKeyException e) {
+            log.error("Failed to initialize HMAC-SHA256 for signature verification", e);
+            throw new com.resumeai.payment.exception.PaymentProcessingException("Signature verification algorithm failure", e);
         } catch (Exception e) {
+            log.warn("Generic failure in signature verification: {}", e.getMessage());
             return false;
         }
     }
+
 
     private String bytesToHex(byte[] bytes) {
         StringBuilder sb = new StringBuilder();

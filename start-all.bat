@@ -55,7 +55,7 @@ start "Latex Compiler - 8091" cmd /k "cd /d %BASE_DIR%latex-compiler-service && 
 timeout /t 3 /nobreak >nul
 
 echo [12/12] Starting Latex Compiler Frontend (Vite)...
-start "Latex Frontend" cmd /k "cd /d %BASE_DIR%frontend && npm run dev"
+start "Latex Frontend" cmd /k "cd /d %BASE_DIR%..\frontend && npm run dev"
 
 echo.
 echo ============================================================
