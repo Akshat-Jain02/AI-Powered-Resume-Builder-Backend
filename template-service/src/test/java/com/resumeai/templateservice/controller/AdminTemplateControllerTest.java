@@ -42,6 +42,27 @@ class AdminTemplateControllerTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
+    void getById_WhenExists_ShouldReturnTemplate() throws Exception {
+        ResumeTemplate t = new ResumeTemplate();
+        t.setId(1L);
+        when(templateService.getById(1L)).thenReturn(java.util.Optional.of(t));
+
+        mockMvc.perform(get("/api/templates/admin/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void getById_WhenNotExists_ShouldReturn404() throws Exception {
+        when(templateService.getById(1L)).thenReturn(java.util.Optional.empty());
+
+        mockMvc.perform(get("/api/templates/admin/1"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
     void toggleActive_ShouldReturnToggledTemplate() throws Exception {
         ResumeTemplate t = new ResumeTemplate();
         t.setActive(true);

@@ -17,7 +17,8 @@
 	<properties>
 		<!-- SonarQube / JaCoCo -->
 		<sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
-		<sonar.exclusions>**/aspect/**,**/exception/ErrorResponse.java,**/exception/GlobalExceptionHandler.java,**/config/**,**/entity/**,**/dto/**,**/model/**,**/*Application.java,**/service/PdfGenerationService.java</sonar.exclusions>
+		<sonar.exclusions>**/aspect/**,**/exception/ErrorResponse.java,**/exception/GlobalExceptionHandler.java,**/config/**,**/entity/**,**/dto/**,**/model/**,**/*Application.java</sonar.exclusions>
+
 
 		<java.version>25</java.version>
 		<spring-cloud.version>2025.0.0</spring-cloud.version>
@@ -194,14 +195,15 @@
 						</rules>
 						<excludes>
 							<exclude>**/aspect/**</exclude>
-								<exclude>**/entity/**</exclude>
+							<exclude>**/entity/**</exclude>
 							<exclude>**/dto/**</exclude>
 							<exclude>**/model/**</exclude>
 							<exclude>**/config/**</exclude>
+							<exclude>**/exception/**</exclude>
 							<exclude>**/*Application.class</exclude>
 							<exclude>**/*Exception.class</exclude>
-							<exclude>**/service/PdfGenerationService.class</exclude>
 						</excludes>
+
 					</configuration>
 				</execution>
 			</executions>

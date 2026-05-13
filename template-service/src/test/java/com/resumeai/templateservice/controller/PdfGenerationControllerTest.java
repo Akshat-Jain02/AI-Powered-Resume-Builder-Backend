@@ -102,8 +102,29 @@ class PdfGenerationControllerTest {
     @WithMockUser
     void generatePdf_WhenMissingData_ShouldReturn400() throws Exception {
         PdfGenerationRequestDto request = new PdfGenerationRequestDto();
-        // missing fields
+        // missing both fields
+        mockMvc.perform(post("/api/templates/pdf/generate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
 
+    @Test
+    @WithMockUser
+    void generatePdf_WhenTemplateIdNull_ShouldReturn400() throws Exception {
+        PdfGenerationRequestDto request = new PdfGenerationRequestDto();
+        request.setResumeData(new ResumeDataDto());
+        mockMvc.perform(post("/api/templates/pdf/generate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    void generatePdf_WhenResumeDataNull_ShouldReturn400() throws Exception {
+        PdfGenerationRequestDto request = new PdfGenerationRequestDto();
+        request.setTemplateId(1L);
         mockMvc.perform(post("/api/templates/pdf/generate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
