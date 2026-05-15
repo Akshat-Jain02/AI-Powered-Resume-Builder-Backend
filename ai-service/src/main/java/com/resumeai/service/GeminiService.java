@@ -34,6 +34,7 @@ public class GeminiService {
         client = Client.builder().apiKey(apiKey).build();
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "ai_results", key = "'analysis:' + T(org.springframework.util.DigestUtils).md5DigestAsHex(#extractedText.getBytes())")
     public ResumeAnalysis analyzeResume(String extractedText) {
         String prompt = """
                 You are a resume analysis API. Return ONLY valid JSON with no markdown, no explanation, no extra text.
@@ -67,6 +68,7 @@ public class GeminiService {
         }
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "ai_results", key = "'ats:' + T(org.springframework.util.DigestUtils).md5DigestAsHex(#extractedText.getBytes())")
     public ATSScoreDTO getATSScore(String extractedText) {
         String prompt = """
                 You are an ATS scoring API. Return ONLY valid JSON with no markdown, no explanation, no extra text.

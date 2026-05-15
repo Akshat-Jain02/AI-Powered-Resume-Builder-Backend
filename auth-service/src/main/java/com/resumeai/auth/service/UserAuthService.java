@@ -58,7 +58,7 @@ public class UserAuthService implements UserDetailsService {
         log.info("Persisting new user record for: {}", dto.getUsername());
         userAuthRepository.save(entity);
 
-        // Add to Bloom Filter
+        // Update Bloom Filter
         log.debug("Updating Bloom Filter with new user: {} / {}", dto.getUsername(), dto.getEmail());
         bloomFilterService.add(dto.getUsername(), dto.getEmail());
 

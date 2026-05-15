@@ -12,8 +12,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
- * Service to manage Bloom Filters for quick username and email uniqueness checks.
- * Industry standard for optimizing high-throughput registration endpoints.
+ * Service to manage In-Memory Bloom Filters for quick username and email uniqueness checks.
+ * Uses Google Guava implementation for fast, probabilistic lookups.
+ * Note: This is instance-local. In a distributed environment, use Redis Bloom.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -22,33 +23,40 @@ public class UserBloomFilterService {
 
     private final UserAuthRepository userAuthRepository;
 
-    // Configured for up to 1 million users with a 0.01% false positive rate
+    // Expected insertions: 1,000,000 users. False positive probability: 1%.
     private BloomFilter<String> usernameFilter;
     private BloomFilter<String> emailFilter;
 
     @PostConstruct
     public void init() {
-        log.info("Initializing User Bloom Filters...");
-        usernameFilter = BloomFilter.create(Funnels.stringFunnel(StandardCharsets.UTF_8), 1_000_000, 0.0001);
-        emailFilter = BloomFilter.create(Funnels.stringFunnel(StandardCharsets.UTF_8), 1_000_000, 0.0001);
+        log.info("Initializing In-Memory Bloom Filters...");
 
+        // 1. Create filters
+        usernameFilter = BloomFilter.create(
+                Funnels.stringFunnel(StandardCharsets.UTF_8),
+                1000000,
+                0.01);
+
+        emailFilter = BloomFilter.create(
+                Funnels.stringFunnel(StandardCharsets.UTF_8),
+                1000000,
+                0.01);
+
+        // 2. Hydrate from database
         long start = System.currentTimeMillis();
-
-        // Load all existing usernames
         List<String> usernames = userAuthRepository.findAllUsernames();
-        usernames.forEach(usernameFilter::put);
+        usernames.forEach(u -> usernameFilter.put(u.toLowerCase()));
 
-        // Load all existing emails
         List<String> emails = userAuthRepository.findAllEmails();
-        emails.forEach(emailFilter::put);
+        emails.forEach(e -> emailFilter.put(e.toLowerCase()));
 
-        log.info("Bloom Filters initialized in {} ms. Loaded {} usernames and {} emails.",
+        log.info("In-Memory Bloom Filters initialized in {} ms. Loaded {} usernames and {} emails.",
                 (System.currentTimeMillis() - start), usernames.size(), emails.size());
     }
 
     /**
-     * Checks if a username might already exist.
-     * @return false if DEFINITELY unique, true if it MIGHT exist (requires DB fallback check).
+     * Checks if the username might already exist.
+     * @return true if it MIGHT exist (fast-fail), false if it definitely DOES NOT exist.
      */
     public boolean mightContainUsername(String username) {
         if (username == null || username.isBlank()) return false;
@@ -56,8 +64,8 @@ public class UserBloomFilterService {
     }
 
     /**
-     * Checks if an email might already exist.
-     * @return false if DEFINITELY unique, true if it MIGHT exist (requires DB fallback check).
+     * Checks if the email might already exist.
+     * @return true if it MIGHT exist (fast-fail), false if it definitely DOES NOT exist.
      */
     public boolean mightContainEmail(String email) {
         if (email == null || email.isBlank()) return false;
@@ -65,7 +73,7 @@ public class UserBloomFilterService {
     }
 
     /**
-     * Add a newly registered user to the Bloom Filters.
+     * Adds a new username and email to the filters.
      */
     public void add(String username, String email) {
         if (username != null && !username.isBlank()) {

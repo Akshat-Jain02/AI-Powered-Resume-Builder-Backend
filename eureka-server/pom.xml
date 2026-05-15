@@ -63,6 +63,9 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<jvmArguments>-Xmx256m -Xms128m</jvmArguments>
+				</configuration>
 			</plugin>
 		
 			<!-- JaCoCo for code coverage (80% line coverage enforced) -->

@@ -27,22 +27,27 @@ public class TemplateService {
 
     // ── Public API ─────────────────────────────────────────────────────────────
 
+    @org.springframework.cache.annotation.Cacheable(value = "templates", key = "'active'")
     public List<ResumeTemplate> getAllActive() {
         return templateRepository.findByIsActiveTrue();
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "templates", key = "'all'")
     public List<ResumeTemplate> getAll() {
         return templateRepository.findAll();
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "templates", key = "#id")
     public Optional<ResumeTemplate> getById(Long id) {
         return templateRepository.findById(id);
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "templates", key = "'category:' + #category")
     public List<ResumeTemplate> getByCategory(String category) {
         return templateRepository.findByCategoryIgnoreCase(category);
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "templates", key = "'top_usage'")
     public List<ResumeTemplate> getTopByUsage() {
         return templateRepository.findByIsActiveTrueOrderByUsageCountDesc();
     }
@@ -50,6 +55,7 @@ public class TemplateService {
     // ── Admin Operations ───────────────────────────────────────────────────────
     
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "templates", allEntries = true)
     public ResumeTemplate create(TemplateRequestDto dto, 
                                MultipartFile latexFile,
                                MultipartFile imageFile) throws IOException {
@@ -85,6 +91,7 @@ public class TemplateService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "templates", allEntries = true)
     public void delete(Long id) {
         ResumeTemplate t = templateRepository.findById(id)
                 .orElseThrow(() -> new com.resumeai.templateservice.exception.TemplateServiceException("Template not found: " + id));
@@ -100,6 +107,7 @@ public class TemplateService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "templates", allEntries = true)
     public ResumeTemplate toggleActive(Long id) {
         ResumeTemplate t = templateRepository.findById(id)
                 .orElseThrow(() -> new com.resumeai.templateservice.exception.TemplateServiceException("Template not found: " + id));
@@ -109,6 +117,7 @@ public class TemplateService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "templates", allEntries = true)
     public void incrementUsage(Long id) {
         templateRepository.findById(id).ifPresent(t -> {
             t.setUsageCount(t.getUsageCount() + 1);
