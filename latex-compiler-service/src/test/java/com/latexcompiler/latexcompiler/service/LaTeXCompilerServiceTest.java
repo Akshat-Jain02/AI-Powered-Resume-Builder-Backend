@@ -277,13 +277,12 @@ class LaTeXCompilerServiceTest {
 
     @Test
     void testIsDockerImageAvailable_Exception() {
-        LaTeXCompilerService exceptionService = new LaTeXCompilerService() {
-            @Override
-            boolean isDockerImageAvailable() {
-                return super.isDockerImageAvailable(); // Call real method for exception testing
-            }
-        };
-        assertFalse(exceptionService.isDockerImageAvailable());
+        try (org.mockito.MockedConstruction<ProcessBuilder> mocked = mockConstruction(ProcessBuilder.class, (mock, context) -> {
+            when(mock.start()).thenThrow(new IOException("Simulated IOException"));
+        })) {
+            LaTeXCompilerService exceptionService = new LaTeXCompilerService();
+            assertFalse(exceptionService.isDockerImageAvailable());
+        }
     }
 
     @Test
