@@ -27,7 +27,6 @@ class UserAuthServiceTest {
     @Mock private UserAuthRepository userAuthRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private AuthEventPublisher eventPublisher;
-    @Mock private UserBloomFilterService bloomFilterService;
 
     @InjectMocks private UserAuthService userAuthService;
 
@@ -60,20 +59,17 @@ class UserAuthServiceTest {
 
     @Test
     void save_success() {
-        when(bloomFilterService.mightContainUsername("testuser")).thenReturn(false);
         when(passwordEncoder.encode("password123")).thenReturn("encoded_password");
 
         UserRegistrationDTO result = userAuthService.save(dto);
 
         assertThat(result).isNotNull();
         verify(userAuthRepository).save(any(UserAuthEntity.class));
-        verify(bloomFilterService).add("testuser", "test@example.com");
         verify(eventPublisher).publishUserRegistered("testuser", "test@example.com");
     }
 
     @Test
     void save_duplicateUsername_throws() {
-        when(bloomFilterService.mightContainUsername("testuser")).thenReturn(true);
         when(userAuthRepository.existsByUsername("testuser")).thenReturn(true);
         assertThatThrownBy(() -> userAuthService.save(dto))
                 .isInstanceOf(UserAlreadyExistsException.class)
@@ -82,8 +78,7 @@ class UserAuthServiceTest {
 
     @Test
     void save_duplicateEmail_throws() {
-        when(bloomFilterService.mightContainUsername("testuser")).thenReturn(false);
-        when(bloomFilterService.mightContainEmail("test@example.com")).thenReturn(true);
+        when(userAuthRepository.existsByUsername("testuser")).thenReturn(false);
         when(userAuthRepository.existsByEmail("test@example.com")).thenReturn(true);
         assertThatThrownBy(() -> userAuthService.save(dto))
                 .isInstanceOf(UserAlreadyExistsException.class)
@@ -93,7 +88,7 @@ class UserAuthServiceTest {
     @Test
     void save_nullEmail_success() {
         dto.setEmail(null);
-        when(bloomFilterService.mightContainUsername("testuser")).thenReturn(false);
+        when(userAuthRepository.existsByUsername("testuser")).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("encoded");
         
         userAuthService.save(dto);
@@ -103,7 +98,7 @@ class UserAuthServiceTest {
     @Test
     void save_blankEmail_success() {
         dto.setEmail("  ");
-        when(bloomFilterService.mightContainUsername("testuser")).thenReturn(false);
+        when(userAuthRepository.existsByUsername("testuser")).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("encoded");
         
         userAuthService.save(dto);
@@ -113,7 +108,7 @@ class UserAuthServiceTest {
     @Test
     void save_alwaysAssignsRoleUser() {
         // Roles field is no longer in DTO, service should assign USER automatically
-        when(bloomFilterService.mightContainUsername("testuser")).thenReturn(false);
+        when(userAuthRepository.existsByUsername("testuser")).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("encoded");
 
         userAuthService.save(dto);
@@ -122,7 +117,7 @@ class UserAuthServiceTest {
 
     @Test
     void save_kafkaFailure_doesNotPropagateException() {
-        when(bloomFilterService.mightContainUsername("testuser")).thenReturn(false);
+        when(userAuthRepository.existsByUsername("testuser")).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("encoded");
         doThrow(new RuntimeException("Kafka down")).when(eventPublisher)
                 .publishUserRegistered(anyString(), anyString());
@@ -155,7 +150,6 @@ class UserAuthServiceTest {
         UserAuthEntity result = userAuthService.findOrCreateUser("new@example.com");
         assertThat(result).isNotNull();
         verify(userAuthRepository).save(any(UserAuthEntity.class));
-        verify(bloomFilterService).add("new@example.com", "new@example.com");
     }
 
     @Test

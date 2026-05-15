@@ -27,7 +27,6 @@ public class UserAuthService implements UserDetailsService {
     private final UserAuthRepository userAuthRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthEventPublisher eventPublisher;
-    private final UserBloomFilterService bloomFilterService;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -36,14 +35,12 @@ public class UserAuthService implements UserDetailsService {
     }
 
     public UserRegistrationDTO save(UserRegistrationDTO dto) {
-        // 1. Fast-fail check with Bloom Filter
-        if (bloomFilterService.mightContainUsername(dto.getUsername()) && 
-            userAuthRepository.existsByUsername(dto.getUsername())) {
+        // 1. Uniqueness check
+        if (userAuthRepository.existsByUsername(dto.getUsername())) {
             throw new UserAlreadyExistsException("Username already taken: " + dto.getUsername());
         }
         
         if (dto.getEmail() != null && !dto.getEmail().isBlank() && 
-            bloomFilterService.mightContainEmail(dto.getEmail()) && 
             userAuthRepository.existsByEmail(dto.getEmail())) {
             throw new UserAlreadyExistsException("Email already registered: " + dto.getEmail());
         }
@@ -57,10 +54,6 @@ public class UserAuthService implements UserDetailsService {
         entity.setRoles(roles);
         log.info("Persisting new user record for: {}", dto.getUsername());
         userAuthRepository.save(entity);
-
-        // Update Bloom Filter
-        log.debug("Updating Bloom Filter with new user: {} / {}", dto.getUsername(), dto.getEmail());
-        bloomFilterService.add(dto.getUsername(), dto.getEmail());
 
         // Publish Kafka event — triggers welcome email in notification-service (best-effort)
         try {
@@ -87,7 +80,6 @@ public class UserAuthService implements UserDetailsService {
                             u.setRoles(new ArrayList<>(List.of("USER")));
                             log.info("Creating new OAuth2 user record for: {}", email);
                             UserAuthEntity saved = userAuthRepository.save(u);
-                            bloomFilterService.add(email, email);
 
                             // Publish Kafka event for OAuth2 registrations too
                             try {

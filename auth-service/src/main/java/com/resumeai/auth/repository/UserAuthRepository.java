@@ -13,9 +13,4 @@ public interface UserAuthRepository extends JpaRepository<UserAuthEntity, Intege
 	boolean existsByUsername(String username);
 	boolean existsByEmail(String email);
 
-	@org.springframework.data.jpa.repository.Query("SELECT u.username FROM UserAuthEntity u WHERE u.username IS NOT NULL")
-	java.util.List<String> findAllUsernames();
-
-	@org.springframework.data.jpa.repository.Query("SELECT u.email FROM UserAuthEntity u WHERE u.email IS NOT NULL")
-	java.util.List<String> findAllEmails();
 }
