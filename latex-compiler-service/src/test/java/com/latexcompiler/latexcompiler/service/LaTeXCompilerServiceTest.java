@@ -286,6 +286,18 @@ class LaTeXCompilerServiceTest {
     }
 
     @Test
+    void testIsDockerImageAvailable_InterruptedException() {
+        try (org.mockito.MockedConstruction<ProcessBuilder> mocked = mockConstruction(ProcessBuilder.class, (mock, context) -> {
+            Process processMock = mock(Process.class);
+            when(mock.start()).thenReturn(processMock);
+            when(processMock.waitFor(anyLong(), any())).thenThrow(new InterruptedException("Simulated InterruptedException"));
+        })) {
+            LaTeXCompilerService exceptionService = new LaTeXCompilerService();
+            assertFalse(exceptionService.isDockerImageAvailable());
+        }
+    }
+
+    @Test
     void testRunCompilationPass_InvalidCompiler() {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             service.runCompilationPass("invalid", mock(Path.class), false);
