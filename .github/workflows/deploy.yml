@@ -2,7 +2,8 @@ name: Deploy to AWS EC2
 
 on:
   push:
-    branches: [ main ] # Change to your default branch if different
+    branches: [ main ]
+  workflow_dispatch: # Allows manual triggering from the Actions tab
 
 jobs:
   build-and-deploy:
