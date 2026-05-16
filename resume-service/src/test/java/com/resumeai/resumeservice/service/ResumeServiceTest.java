@@ -91,9 +91,13 @@ class ResumeServiceTest {
     }
 
     @Test
-    void saveResume_createsNewResume() throws Exception {
+    void saveResume_createsNewResume() {
         when(templateServiceClient.getTemplateById(1L)).thenReturn(templateDto);
-        when(objectMapper.writeValueAsString(any())).thenReturn("{\"fullName\":\"Alice Smith\"}");
+        try {
+            when(objectMapper.writeValueAsString(any())).thenReturn("{\"fullName\":\"Alice Smith\"}");
+        } catch (com.fasterxml.jackson.core.JsonProcessingException _) {
+            // Unreachable in mock
+        }
         when(savedResumeRepository.save(any(SavedResume.class))).thenReturn(savedResume);
 
         SavedResume result = resumeService.saveResume(request, "alice");
@@ -103,10 +107,14 @@ class ResumeServiceTest {
     }
 
     @Test
-    void saveResume_updatesExistingResume() throws Exception {
+    void saveResume_updatesExistingResume() {
         request.setSavedResumeId(100L);
         when(templateServiceClient.getTemplateById(1L)).thenReturn(templateDto);
-        when(objectMapper.writeValueAsString(any())).thenReturn("{\"fullName\":\"Alice Smith\"}");
+        try {
+            when(objectMapper.writeValueAsString(any())).thenReturn("{\"fullName\":\"Alice Smith\"}");
+        } catch (com.fasterxml.jackson.core.JsonProcessingException _) {
+             // Unreachable
+        }
         when(savedResumeRepository.findByIdAndUsername(100L, "alice")).thenReturn(Optional.of(savedResume));
         when(savedResumeRepository.save(savedResume)).thenReturn(savedResume);
 
@@ -129,12 +137,12 @@ class ResumeServiceTest {
     }
 
     @Test
-    void saveResume_templateNotFound_throws() throws Exception {
+    void saveResume_templateNotFound_throws() {
         FeignException.NotFound notFound = mock(FeignException.NotFound.class);
         when(templateServiceClient.getTemplateById(1L)).thenThrow(notFound);
 
         assertThatThrownBy(() -> resumeService.saveResume(request, "alice"))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Template not found");
     }
 
@@ -169,10 +177,14 @@ class ResumeServiceTest {
     }
 
     @Test
-    void getSavedResumeData_success() throws Exception {
+    void getSavedResumeData_success() {
         ResumeDataDto resumeData = new ResumeDataDto();
         when(savedResumeRepository.findByIdAndUsername(100L, "alice")).thenReturn(Optional.of(savedResume));
-        when(objectMapper.readValue(anyString(), eq(ResumeDataDto.class))).thenReturn(resumeData);
+        try {
+            when(objectMapper.readValue(anyString(), eq(ResumeDataDto.class))).thenReturn(resumeData);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException _) {
+             // Unreachable
+        }
 
         ResumeDataDto result = resumeService.getSavedResumeData(100L, "alice");
         assertThat(result).isNotNull();
@@ -183,7 +195,7 @@ class ResumeServiceTest {
         when(savedResumeRepository.findByIdAndUsername(999L, "alice")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> resumeService.getSavedResumeData(999L, "alice"))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -200,14 +212,18 @@ class ResumeServiceTest {
         when(savedResumeRepository.findByIdAndUsername(999L, "alice")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> resumeService.deleteSavedResume(999L, "alice"))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    void regeneratePdfForSaved_success() throws Exception {
+    void regeneratePdfForSaved_success() {
         ResumeDataDto resumeData = new ResumeDataDto();
         when(savedResumeRepository.findByIdAndUsername(100L, "alice")).thenReturn(Optional.of(savedResume));
-        when(objectMapper.readValue(anyString(), eq(ResumeDataDto.class))).thenReturn(resumeData);
+        try {
+            when(objectMapper.readValue(anyString(), eq(ResumeDataDto.class))).thenReturn(resumeData);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException _) {
+             // Unreachable
+        }
         when(templateServiceClient.generatePdf(any())).thenReturn("PDF".getBytes());
 
         byte[] pdf = resumeService.regeneratePdfForSaved(100L, "alice");

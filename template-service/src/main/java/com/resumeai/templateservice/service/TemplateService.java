@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -26,22 +27,27 @@ public class TemplateService {
 
     // ── Public API ─────────────────────────────────────────────────────────────
 
+    @org.springframework.cache.annotation.Cacheable(value = "templates", key = "'active'")
     public List<ResumeTemplate> getAllActive() {
         return templateRepository.findByIsActiveTrue();
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "templates", key = "'all'")
     public List<ResumeTemplate> getAll() {
         return templateRepository.findAll();
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "templates", key = "#id")
     public Optional<ResumeTemplate> getById(Long id) {
         return templateRepository.findById(id);
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "templates", key = "'category:' + #category")
     public List<ResumeTemplate> getByCategory(String category) {
         return templateRepository.findByCategoryIgnoreCase(category);
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "templates", key = "'top_usage'")
     public List<ResumeTemplate> getTopByUsage() {
         return templateRepository.findByIsActiveTrueOrderByUsageCountDesc();
     }
@@ -49,6 +55,7 @@ public class TemplateService {
     // ── Admin Operations ───────────────────────────────────────────────────────
     
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "templates", allEntries = true)
     public ResumeTemplate create(TemplateRequestDto dto, 
                                MultipartFile latexFile,
                                MultipartFile imageFile) throws IOException {
@@ -67,11 +74,12 @@ public class TemplateService {
         log.debug("Reading LaTeX content from file: {}", latexFile.getOriginalFilename());
         t.setLatexContent(new String(latexFile.getBytes(), StandardCharsets.UTF_8));
         
-        // Upload image to Cloudinary and store URL
+        // Upload image to Cloudinary and store URL + Public ID
         log.info("Uploading template preview image to Cloudinary...");
-        String imageUrl = cloudinaryService.uploadFile(imageFile);
-        t.setPreviewImageUrl(imageUrl);
-        log.info("Cloudinary upload successful. URL: {}", imageUrl);
+        Map<String, String> uploadResult = cloudinaryService.uploadFile(imageFile, "templates", dto.getName());
+        t.setPreviewImageUrl(uploadResult.get("url"));
+        t.setPreviewImagePublicId(uploadResult.get("public_id"));
+        log.info("Cloudinary upload successful. URL: {}", uploadResult.get("url"));
         
         // Set a dummy templateId for now or use the next available
         t.setTemplateId((int) (templateRepository.count() + 1));
@@ -83,24 +91,33 @@ public class TemplateService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "templates", allEntries = true)
     public void delete(Long id) {
-        if (!templateRepository.existsById(id)) {
-            throw new com.resumeai.templateservice.exception.TemplateServiceException("Template not found: " + id);
+        ResumeTemplate t = templateRepository.findById(id)
+                .orElseThrow(() -> new com.resumeai.templateservice.exception.TemplateServiceException("Template not found: " + id));
+        
+        // Delete image from Cloudinary if it exists
+        if (t.getPreviewImagePublicId() != null) {
+            log.info("Deleting associated Cloudinary image for template: {}", id);
+            cloudinaryService.deleteFile(t.getPreviewImagePublicId());
         }
-        templateRepository.deleteById(id);
+        
+        templateRepository.delete(t);
+        log.info("Template record deleted successfully for ID: {}", id);
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "templates", allEntries = true)
     public ResumeTemplate toggleActive(Long id) {
         ResumeTemplate t = templateRepository.findById(id)
                 .orElseThrow(() -> new com.resumeai.templateservice.exception.TemplateServiceException("Template not found: " + id));
         t.setActive(!t.isActive());
         log.info("Toggling activity for Template ID: {}. New status: ACTIVE={}", id, t.isActive());
-        ResumeTemplate saved = templateRepository.save(t);
-        return saved;
+        return templateRepository.save(t);
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "templates", allEntries = true)
     public void incrementUsage(Long id) {
         templateRepository.findById(id).ifPresent(t -> {
             t.setUsageCount(t.getUsageCount() + 1);

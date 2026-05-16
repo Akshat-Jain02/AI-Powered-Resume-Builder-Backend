@@ -47,7 +47,7 @@ public class PdfGenerationController {
             @ApiResponse(responseCode = "500", description = "Latex/PDF generation failure")
     })
     @PostMapping("/generate")
-    public ResponseEntity<?> generatePdf(@Valid @RequestBody PdfGenerationRequestDto request) {
+    public ResponseEntity<Object> generatePdf(@Valid @RequestBody PdfGenerationRequestDto request) {
         if (request.getTemplateId() == null || request.getResumeData() == null) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "templateId and resumeData are required"));
@@ -62,12 +62,6 @@ public class PdfGenerationController {
         }
 
         try {
-            int internalId = template.getTemplateId();
-            if (internalId == 0) {
-                log.warn("Template entity (id={}) has uninitialized templateId (0). Falling back to database id.", template.getId());
-                internalId = template.getId().intValue();
-            }
-
             byte[] pdf = pdfGenerationService.generatePdf(
                     template,
                     request.getResumeData()
@@ -81,9 +75,15 @@ public class PdfGenerationController {
                     .contentType(MediaType.APPLICATION_PDF)
                     .body(pdf);
 
-        } catch (Exception e) {
+        } catch (com.resumeai.templateservice.exception.TemplateServiceException e) {
+            log.error("Managed exception during PDF generation: {}", e.getMessage());
             return ResponseEntity.internalServerError()
-                    .body(Map.of("error", "PDF generation failed: " + e.getMessage()));
+                    .body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Unexpected error during PDF generation", e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "An unexpected error occurred during PDF generation."));
         }
     }
 }
+

@@ -48,7 +48,7 @@ public class ResumeService {
         try {
             return templateServiceClient.generatePdf(pdfRequest);
         } catch (FeignException e) {
-            throw new RuntimeException("PDF generation failed: " + e.getMessage(), e);
+            throw new IllegalStateException("PDF generation failed: " + e.getMessage(), e);
         }
     }
 
@@ -61,43 +61,48 @@ public class ResumeService {
      * created.
      */
     @Transactional
-    public SavedResume saveResume(GeneratePdfRequest request, String username) throws Exception {
+    public SavedResume saveResume(GeneratePdfRequest request, String username) {
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("Username must not be blank when saving a resume");
         }
 
-        TemplateDto template = fetchTemplate(request.getTemplateId());
-        String resumeJson    = objectMapper.writeValueAsString(request.getResumeData());
+        try {
+            TemplateDto template = fetchTemplate(request.getTemplateId());
+            String resumeJson    = objectMapper.writeValueAsString(request.getResumeData());
 
-        // Update existing record if the savedResumeId belongs to this user
-        if (request.getSavedResumeId() != null) {
-            Optional<SavedResume> existing =
-                    savedResumeRepository.findByIdAndUsername(request.getSavedResumeId(), username);
-            if (existing.isPresent()) {
-                SavedResume r = existing.get();
-                log.info("Updating existing resume record: {} for user: {}", r.getId(), username);
-                r.setTemplateId(request.getTemplateId());
-                r.setTemplateName(template.getName());
-                r.setFullName(nvl(request.getResumeData().getFullName()));
-                r.setResumeData(resumeJson);
-                SavedResume saved = savedResumeRepository.save(r);
-                log.debug("Resume record successfully updated and persisted.");
-                return saved;
+            // Update existing record if the savedResumeId belongs to this user
+            if (request.getSavedResumeId() != null) {
+                Optional<SavedResume> existing =
+                        savedResumeRepository.findByIdAndUsername(request.getSavedResumeId(), username);
+                if (existing.isPresent()) {
+                    SavedResume r = existing.get();
+                    log.info("Updating existing resume record: {} for user: {}", r.getId(), username);
+                    r.setTemplateId(request.getTemplateId());
+                    r.setTemplateName(template.getName());
+                    r.setFullName(nvl(request.getResumeData().getFullName()));
+                    r.setResumeData(resumeJson);
+                    SavedResume saved = savedResumeRepository.save(r);
+                    log.debug("Resume record successfully updated and persisted.");
+                    return saved;
+                }
             }
-        }
 
-        // Create new record — always bind to the authenticated user
-        log.info("Creating a new saved resume record for user: {} with template: {}", username, template.getName());
-        SavedResume resume = new SavedResume();
-        resume.setUsername(username);
-        resume.setTemplateId(request.getTemplateId());
-        resume.setTemplateName(template.getName());
-        resume.setFullName(nvl(request.getResumeData().getFullName()));
-        resume.setResumeData(resumeJson);
-        
-        SavedResume saved = savedResumeRepository.save(resume);
-        log.info("Successfully created and persisted new resume record ID: {}", saved.getId());
-        return saved;
+            // Create new record — always bind to the authenticated user
+            log.info("Creating a new saved resume record for user: {} with template: {}", username, template.getName());
+            SavedResume resume = new SavedResume();
+            resume.setUsername(username);
+            resume.setTemplateId(request.getTemplateId());
+            resume.setTemplateName(template.getName());
+            resume.setFullName(nvl(request.getResumeData().getFullName()));
+            resume.setResumeData(resumeJson);
+            
+            SavedResume saved = savedResumeRepository.save(resume);
+            log.info("Successfully created and persisted new resume record ID: {}", saved.getId());
+            return saved;
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            log.error("Failed to serialize resume data for user {}: {}", username, e.getMessage());
+            throw new com.resumeai.resumeservice.exception.ResumeServiceException("Failed to process resume data for storage", e);
+        }
     }
 
     // ── Queries — all strictly scoped to the calling user ─────────────────────
@@ -111,17 +116,22 @@ public class ResumeService {
         return savedResumeRepository.findByIdAndUsername(id, username);
     }
 
-    public ResumeDataDto getSavedResumeData(Long id, String username) throws Exception {
+    public ResumeDataDto getSavedResumeData(Long id, String username) {
         SavedResume r = savedResumeRepository.findByIdAndUsername(id, username)
-                .orElseThrow(() -> new RuntimeException(
+                .orElseThrow(() -> new IllegalArgumentException(
                         "Resume " + id + " not found or does not belong to user " + username));
-        return objectMapper.readValue(r.getResumeData(), ResumeDataDto.class);
+        try {
+            return objectMapper.readValue(r.getResumeData(), ResumeDataDto.class);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            log.error("Failed to parse stored resume data for ID {}: {}", id, e.getMessage());
+            throw new com.resumeai.resumeservice.exception.ResumeServiceException("Corrupted resume data in storage", e);
+        }
     }
 
     @Transactional
     public void deleteSavedResume(Long id, String username) {
         SavedResume r = savedResumeRepository.findByIdAndUsername(id, username)
-                .orElseThrow(() -> new RuntimeException(
+                .orElseThrow(() -> new IllegalArgumentException(
                         "Resume " + id + " not found or does not belong to user " + username));
         savedResumeRepository.delete(r);
     }
@@ -130,17 +140,23 @@ public class ResumeService {
      * Re-generates the PDF for a saved resume by replaying the stored data
      * through template-service. Photo data is included if it was saved.
      */
-    public byte[] regeneratePdfForSaved(Long savedResumeId, String username) throws Exception {
+    public byte[] regeneratePdfForSaved(Long savedResumeId, String username) {
         SavedResume r = savedResumeRepository.findByIdAndUsername(savedResumeId, username)
-                .orElseThrow(() -> new RuntimeException(
+                .orElseThrow(() -> new IllegalArgumentException(
                         "Resume " + savedResumeId + " not found or does not belong to user " + username));
-        ResumeDataDto data = objectMapper.readValue(r.getResumeData(), ResumeDataDto.class);
+        try {
+            ResumeDataDto data = objectMapper.readValue(r.getResumeData(), ResumeDataDto.class);
 
-        GeneratePdfRequest req = new GeneratePdfRequest();
-        req.setTemplateId(r.getTemplateId());
-        req.setResumeData(data);
-        return generatePdf(req);
+            GeneratePdfRequest req = new GeneratePdfRequest();
+            req.setTemplateId(r.getTemplateId());
+            req.setResumeData(data);
+            return generatePdf(req);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            log.error("Failed to parse stored resume data for regeneration ID {}: {}", savedResumeId, e.getMessage());
+            throw new com.resumeai.resumeservice.exception.ResumeServiceException("Failed to regenerate PDF from stored data", e);
+        }
     }
+
 
     // ── Admin / analytics helpers ──────────────────────────────────────────────
 
@@ -156,16 +172,16 @@ public class ResumeService {
             TemplateDto t = templateServiceClient.getTemplateById(templateId);
             if (t == null) {
                 log.error("Template Service returned null for ID: {}", templateId);
-                throw new RuntimeException("Template not found: " + templateId);
+                throw new IllegalArgumentException("Template not found: " + templateId);
             }
             log.debug("Template metadata retrieved successfully: {}", t.getName());
             return t;
         } catch (FeignException.NotFound e) {
             log.warn("Template ID: {} not found in Template Service.", templateId);
-            throw new RuntimeException("Template not found: " + templateId);
+            throw new IllegalArgumentException("Template not found: " + templateId);
         } catch (FeignException e) {
             log.error("Template Service communication error: {} {}", e.status(), e.getMessage());
-            throw new RuntimeException("Template Service is unavailable: " + e.status() + " " + e.getMessage());
+            throw new IllegalStateException("Template Service is unavailable: " + e.status() + " " + e.getMessage());
         }
     }
 

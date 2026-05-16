@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StopWatch;
 
+import java.util.Collection;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 @Aspect
@@ -40,13 +42,16 @@ public class LoggingAspect {
         log.info("[THREAD:{}] >> ENTER: {}.{}() | Returns: {} | Args: [{}]", 
             threadName, className, methodName, returnType, maskSensitiveArgs(joinPoint));
 
-        StopWatch sw = new StopWatch(); sw.start();
+        StopWatch sw = new StopWatch();
+        sw.start();
         try {
-            Object result = joinPoint.proceed(); sw.stop();
+            Object result = joinPoint.proceed();
+            sw.stop();
             log.info("[THREAD:{}] << EXIT: {}.{}() | Result: {} | Time: {}ms", 
                 threadName, className, methodName, summarizeResult(result), sw.getTotalTimeMillis());
             return result;
-        } catch (Exception e) { sw.stop();
+        } catch (Exception e) {
+            sw.stop();
             log.error("[THREAD:{}] !! ERROR: {}.{}() | Message: {} | Time: {}ms", 
                 threadName, className, methodName, e.getMessage(), sw.getTotalTimeMillis(), e);
             throw e;
@@ -55,7 +60,9 @@ public class LoggingAspect {
 
     private String maskSensitiveArgs(ProceedingJoinPoint joinPoint) {
         Object[] args = joinPoint.getArgs();
-        if (args == null || args.length == 0) return "";
+        if (args == null || args.length == 0) {
+            return "";
+        }
 
         String[] paramNames;
         try {
@@ -70,7 +77,9 @@ public class LoggingAspect {
             .mapToObj(i -> {
                 String paramName = (finalParamNames != null && i < finalParamNames.length)
                     ? finalParamNames[i] : "arg" + i;
-                if (isSensitive(paramName) || isSensitiveType(args[i])) return paramName + "=****";
+                if (isSensitive(paramName) || isSensitiveType(args[i])) {
+                    return paramName + "=****";
+                }
                 return paramName + "=" + summarizeArg(args[i]);
             })
             .reduce((a, b) -> a + ", " + b)
@@ -79,30 +88,52 @@ public class LoggingAspect {
 
     private boolean isSensitive(String paramName) {
         String lower = paramName.toLowerCase();
-        for (String s : SENSITIVE_PARAMS) { if (lower.contains(s)) return true; }
+        for (String s : SENSITIVE_PARAMS) {
+            if (lower.contains(s)) {
+                return true;
+            }
+        }
         return false;
     }
 
     private boolean isSensitiveType(Object arg) {
-        if (arg == null) return false;
+        if (arg == null) {
+            return false;
+        }
         String cn = arg.getClass().getSimpleName().toLowerCase();
         return cn.contains("login") || cn.contains("registration") || cn.contains("credential");
     }
 
     private String summarizeArg(Object arg) {
-        if (arg == null) return "null";
-        if (arg instanceof byte[]) return "byte[" + ((byte[]) arg).length + "]";
-        if (arg instanceof String s && s.length() > 200) return s.substring(0, 200) + "...[truncated]";
+        if (arg == null) {
+            return "null";
+        }
+        if (arg instanceof byte[]) {
+            return "byte[" + ((byte[]) arg).length + "]";
+        }
+        if (arg instanceof String s && s.length() > 200) {
+            return s.substring(0, 200) + "...[truncated]";
+        }
         return String.valueOf(arg);
     }
 
+    @SuppressWarnings("rawtypes")
     private String summarizeResult(Object r) {
-        if (r == null) return "null";
-        if (r instanceof ResponseEntity<?> re) 
+        if (r == null) {
+            return "null";
+        }
+        if (r instanceof ResponseEntity re) {
             return "ResponseEntity[status=" + re.getStatusCode() + ", hasBody=" + (re.getBody() != null) + "]";
-        if (r instanceof byte[]) return "byte[" + ((byte[]) r).length + "]";
-        if (r instanceof Collection<?> c) return "Collection[size=" + c.size() + "]";
-        if (r instanceof Map<?,?> m) return "Map[size=" + m.size() + "]";
+        }
+        if (r instanceof byte[]) {
+            return "byte[" + ((byte[]) r).length + "]";
+        }
+        if (r instanceof Collection c) {
+            return "Collection[size=" + c.size() + "]";
+        }
+        if (r instanceof Map m) {
+            return "Map[size=" + m.size() + "]";
+        }
         String s = String.valueOf(r);
         return s.length() > 250 ? s.substring(0, 250) + "...[truncated]" : s;
     }

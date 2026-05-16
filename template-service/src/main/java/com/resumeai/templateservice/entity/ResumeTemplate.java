@@ -63,6 +63,9 @@ public class ResumeTemplate {
     @Column(name = "preview_image_url", length = 512)
     private String previewImageUrl;
 
+    @Column(name = "preview_image_public_id", length = 255)
+    private String previewImagePublicId;
+
 
     @Column(name = "created_at")
     private LocalDate createdAt = LocalDate.now();

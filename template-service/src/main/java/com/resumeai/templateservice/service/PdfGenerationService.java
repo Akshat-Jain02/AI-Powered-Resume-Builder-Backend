@@ -8,6 +8,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,7 +21,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PdfGenerationService {
 
-    private final RestTemplate restTemplate;
+    private final RestTemplate restTemplate; // Regular for external URLs
+    private final RestTemplate loadBalancedRestTemplate; // For microservices
 
     /**
      * Generate a PDF for the given template entity and resume data.
@@ -44,27 +46,69 @@ public class PdfGenerationService {
             latex = "\\documentclass{article}\\begin{document}No content available.\\end{document}";
         }
         
-        return compilePdf(latex, data != null ? data.getPhotoBase64() : null);
+        Map<String, String> resolvedFiles = resolveProjectFiles(data);
+        return compilePdf(latex, data != null ? data.getPhotoBase64() : null, resolvedFiles);
+    }
+
+    /**
+     * Downloads any Cloudinary URLs in the files map and converts them to Base64.
+     */
+    private Map<String, String> resolveProjectFiles(ResumeDataDto data) {
+        Map<String, String> resolved = new HashMap<>();
+        if (data == null || data.getFiles() == null) return resolved;
+
+        for (Map.Entry<String, String> entry : data.getFiles().entrySet()) {
+            processProjectFile(entry.getKey(), entry.getValue(), resolved);
+        }
+        return resolved;
+    }
+
+    private void processProjectFile(String fileName, String content, Map<String, String> resolved) {
+        if (content != null && (content.startsWith("http://") || content.startsWith("https://"))) {
+            if (!isValidExternalUrl(content)) {
+                log.warn("Blocking potentially unsafe URL: {}", content);
+                return;
+            }
+
+            try {
+                log.debug("Downloading project file from URL: {}", content);
+                byte[] bytes = restTemplate.getForObject(content, byte[].class);
+                if (bytes != null) {
+                    resolved.put(fileName, Base64.getEncoder().encodeToString(bytes));
+                }
+            } catch (org.springframework.web.client.RestClientException e) {
+                log.error("Failed to download file {}: {}", fileName, e.getMessage());
+            }
+        } else {
+            resolved.put(fileName, content);
+        }
+    }
+
+    private boolean isValidExternalUrl(String url) {
+        // Industry Best Practice: Use a whitelist for external asset downloads to prevent SSRF
+        return url.contains("res.cloudinary.com") || url.contains("cloudinary.com");
     }
 
     /**
      * Compiles the given LaTeX string to PDF bytes via remote compiler service.
      */
-    private byte[] compilePdf(String latex, String photoBase64) {
+    private byte[] compilePdf(String latex, String photoBase64, Map<String, String> files) {
         
-        Map<String, String> request = new HashMap<>();
+        Map<String, Object> request = new HashMap<>();
         request.put("code", latex);
         request.put("photoBase64", photoBase64);
+        request.put("files", files);
 
         try {
-            return restTemplate.postForObject(
+            return loadBalancedRestTemplate.postForObject(
                 "http://latex-compiler-service/api/compiler/compile",
                 new HttpEntity<>(request),
                 byte[].class
             );
-        } catch (Exception e) {
+        } catch (org.springframework.web.client.RestClientException e) {
             log.error("Remote LaTeX compilation failed: {}", e.getMessage());
-            throw new RuntimeException("LaTeX compilation service unavailable or failed.", e);
+            throw new com.resumeai.templateservice.exception.TemplateServiceException("LaTeX compilation service unavailable or failed.", e);
         }
     }
 }
+

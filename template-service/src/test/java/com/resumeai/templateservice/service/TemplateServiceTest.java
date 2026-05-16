@@ -14,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -61,6 +62,40 @@ class TemplateServiceTest {
     }
 
     @Test
+    void getAll_ShouldReturnAllTemplates() {
+        ResumeTemplate t = new ResumeTemplate();
+        when(templateRepository.findAll()).thenReturn(Arrays.asList(t));
+
+        List<ResumeTemplate> result = templateService.getAll();
+
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void getByCategory_ShouldReturnTemplates() {
+        ResumeTemplate t = new ResumeTemplate();
+        t.setCategory("IT");
+        when(templateRepository.findByCategoryIgnoreCase("IT")).thenReturn(Arrays.asList(t));
+
+        List<ResumeTemplate> result = templateService.getByCategory("IT");
+
+        assertEquals(1, result.size());
+        assertEquals("IT", result.get(0).getCategory());
+    }
+
+    @Test
+    void getTopByUsage_ShouldReturnTemplates() {
+        ResumeTemplate t = new ResumeTemplate();
+        t.setUsageCount(10);
+        when(templateRepository.findByIsActiveTrueOrderByUsageCountDesc()).thenReturn(Arrays.asList(t));
+
+        List<ResumeTemplate> result = templateService.getTopByUsage();
+
+        assertEquals(1, result.size());
+        assertEquals(10, result.get(0).getUsageCount());
+    }
+
+    @Test
     void create_ShouldSaveTemplateAndUploadImage() throws IOException {
         TemplateRequestDto dto = new TemplateRequestDto();
         dto.setName("Test Template");
@@ -69,7 +104,8 @@ class TemplateServiceTest {
         MockMultipartFile latexFile = new MockMultipartFile("latex", "test.tex", "text/plain", "\\documentclass{article}".getBytes());
         MockMultipartFile imageFile = new MockMultipartFile("image", "test.png", "image/png", "dummy-image-data".getBytes());
         
-        when(cloudinaryService.uploadFile(any(MultipartFile.class))).thenReturn("http://cloudinary.com/test.png");
+        when(cloudinaryService.uploadFile(any(MultipartFile.class), anyString(), anyString()))
+                .thenReturn(Map.of("url", "http://cloudinary.com/test.png", "public_id", "test-id"));
         when(templateRepository.count()).thenReturn(5L);
         when(templateRepository.save(any(ResumeTemplate.class))).thenAnswer(i -> i.getArguments()[0]);
 
@@ -80,25 +116,27 @@ class TemplateServiceTest {
         assertEquals("http://cloudinary.com/test.png", result.getPreviewImageUrl());
         assertEquals("\\documentclass{article}", result.getLatexContent());
         assertEquals(6, result.getTemplateId());
-        verify(cloudinaryService).uploadFile(imageFile);
+        verify(cloudinaryService).uploadFile(eq(imageFile), anyString(), anyString());
         verify(templateRepository).save(any(ResumeTemplate.class));
     }
 
     @Test
     void delete_ShouldDelete_WhenTemplateExists() {
-        when(templateRepository.existsById(1L)).thenReturn(true);
+        ResumeTemplate t = new ResumeTemplate();
+        t.setId(1L);
+        when(templateRepository.findById(1L)).thenReturn(Optional.of(t));
 
         templateService.delete(1L);
 
-        verify(templateRepository).deleteById(1L);
+        verify(templateRepository).delete(t);
     }
 
     @Test
     void delete_ShouldThrow_WhenTemplateDoesNotExist() {
-        when(templateRepository.existsById(1L)).thenReturn(false);
+        when(templateRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThrows(com.resumeai.templateservice.exception.TemplateServiceException.class, () -> templateService.delete(1L));
-        verify(templateRepository, never()).deleteById(anyLong());
+        verify(templateRepository, never()).delete(any());
     }
 
     @Test
@@ -113,6 +151,14 @@ class TemplateServiceTest {
 
         assertFalse(result.isActive());
         verify(templateRepository).save(t);
+    }
+
+    @Test
+    void toggleActive_ShouldThrow_WhenNotFound() {
+        when(templateRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(com.resumeai.templateservice.exception.TemplateServiceException.class, () -> templateService.toggleActive(1L));
+        verify(templateRepository, never()).save(any(ResumeTemplate.class));
     }
 
     @Test

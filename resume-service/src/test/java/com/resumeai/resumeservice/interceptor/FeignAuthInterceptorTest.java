@@ -1,69 +1,154 @@
 package com.resumeai.resumeservice.interceptor;
 
 import feign.RequestTemplate;
-import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.slf4j.MDC;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import static org.mockito.Mockito.*;
+import java.util.Collection;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class FeignAuthInterceptorTest {
 
     private FeignAuthInterceptor interceptor;
-
-    @Mock private RequestTemplate template;
-    @Mock private HttpServletRequest request;
-
-    private AutoCloseable mocks;
+    private RequestTemplate template;
 
     @BeforeEach
     void setUp() {
-        mocks = MockitoAnnotations.openMocks(this);
         interceptor = new FeignAuthInterceptor();
+        template = new RequestTemplate();
+        MDC.clear();
+        RequestContextHolder.resetRequestAttributes();
     }
 
     @AfterEach
-    void tearDown() throws Exception {
+    void tearDown() {
+        MDC.clear();
         RequestContextHolder.resetRequestAttributes();
-        mocks.close();
     }
 
     @Test
     void apply_withHeaders_forwardsThem() {
-        ServletRequestAttributes attrs = new ServletRequestAttributes(request);
-        RequestContextHolder.setRequestAttributes(attrs);
-
-        when(request.getHeader("X-Username")).thenReturn("testuser");
-        when(request.getHeader("X-Roles")).thenReturn("USER");
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Username", "testuser");
+        request.addHeader("X-Roles", "USER");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
         interceptor.apply(template);
 
-        verify(template).header("X-Username", "testuser");
-        verify(template).header("X-Roles", "USER");
+        Map<String, Collection<String>> headers = template.headers();
+        assertTrue(headers.containsKey("X-Username"));
+        assertTrue(headers.containsKey("X-Roles"));
+        assertEquals("testuser", headers.get("X-Username").iterator().next());
+        assertEquals("USER", headers.get("X-Roles").iterator().next());
     }
 
     @Test
-    void apply_noAttributes_doesNothing() {
+    void apply_noAttributes_doesNotSetUserHeaders() {
         RequestContextHolder.resetRequestAttributes();
         interceptor.apply(template);
-        verifyNoInteractions(template);
+        Map<String, Collection<String>> headers = template.headers();
+        assertFalse(headers.containsKey("X-Username"));
+        assertFalse(headers.containsKey("X-Roles"));
     }
 
     @Test
     void apply_noHeaders_doesNotAddHeaders() {
-        ServletRequestAttributes attrs = new ServletRequestAttributes(request);
-        RequestContextHolder.setRequestAttributes(attrs);
-
-        when(request.getHeader("X-Username")).thenReturn(null);
-        when(request.getHeader("X-Roles")).thenReturn(null);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
         interceptor.apply(template);
 
-        verify(template, never()).header(anyString(), anyString());
+        Map<String, Collection<String>> headers = template.headers();
+        assertFalse(headers.containsKey("X-Username"));
+        assertFalse(headers.containsKey("X-Roles"));
+    }
+
+    @Test
+    void apply_WithMdcValues_SetsTraceHeaders() {
+        MDC.put("traceId", "test-trace");
+        MDC.put("requestId", "test-req");
+
+        interceptor.apply(template);
+
+        Map<String, Collection<String>> headers = template.headers();
+        assertTrue(headers.containsKey("X-Trace-Id"));
+        assertTrue(headers.containsKey("X-Request-Id"));
+        assertEquals("test-trace", headers.get("X-Trace-Id").iterator().next());
+        assertEquals("test-req", headers.get("X-Request-Id").iterator().next());
+    }
+
+    @Test
+    void apply_WithoutMdcButWithRequestAttributes_SetsHeadersFromRequest() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Trace-Id", "req-trace");
+        request.addHeader("X-Request-Id", "req-req");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        interceptor.apply(template);
+
+        Map<String, Collection<String>> headers = template.headers();
+        assertTrue(headers.containsKey("X-Trace-Id"));
+        assertTrue(headers.containsKey("X-Request-Id"));
+        assertEquals("req-trace", headers.get("X-Trace-Id").iterator().next());
+        assertEquals("req-req", headers.get("X-Request-Id").iterator().next());
+    }
+
+    @Test
+    void apply_WithBlankMdc_SetsHeadersFromRequest() {
+        MDC.put("traceId", "  ");
+        MDC.put("requestId", "");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Trace-Id", "req-trace-2");
+        request.addHeader("X-Request-Id", "req-req-2");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        interceptor.apply(template);
+
+        Map<String, Collection<String>> headers = template.headers();
+        assertTrue(headers.containsKey("X-Trace-Id"));
+        assertTrue(headers.containsKey("X-Request-Id"));
+        assertEquals("req-trace-2", headers.get("X-Trace-Id").iterator().next());
+        assertEquals("req-req-2", headers.get("X-Request-Id").iterator().next());
+    }
+
+    @Test
+    void apply_WithoutMdcAndWithoutRequestAttributes_DoesNotSetTraceHeaders() {
+        interceptor.apply(template);
+
+        Map<String, Collection<String>> headers = template.headers();
+        assertFalse(headers.containsKey("X-Trace-Id"));
+        assertFalse(headers.containsKey("X-Request-Id"));
+    }
+
+    @Test
+    void apply_WithOnlyTraceId_SetsOnlyTraceIdHeader() {
+        MDC.put("traceId", "test-trace");
+
+        interceptor.apply(template);
+
+        Map<String, Collection<String>> headers = template.headers();
+        assertTrue(headers.containsKey("X-Trace-Id"));
+        assertFalse(headers.containsKey("X-Request-Id"));
+    }
+
+    @Test
+    void apply_WithOnlyRequestId_SetsOnlyRequestIdHeader() {
+        MDC.put("requestId", "test-req");
+
+        interceptor.apply(template);
+
+        Map<String, Collection<String>> headers = template.headers();
+        assertFalse(headers.containsKey("X-Trace-Id"));
+        assertTrue(headers.containsKey("X-Request-Id"));
     }
 }

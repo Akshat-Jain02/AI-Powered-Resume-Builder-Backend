@@ -33,15 +33,19 @@ class CloudinaryServiceTest {
     }
 
     @Test
-    void uploadFile_Success_ShouldReturnUrl() throws IOException {
+    void uploadFile_Success_ShouldReturnMap() throws IOException {
         MockMultipartFile file = new MockMultipartFile("file", "test.png", "image/png", "data".getBytes());
-        Map<String, Object> result = Map.of("secure_url", "http://res.cloudinary.com/test.png");
+        Map<String, Object> result = Map.of(
+            "secure_url", "http://res.cloudinary.com/test.png",
+            "public_id", "templates/hash"
+        );
         
         when(uploader.upload(any(byte[].class), any(Map.class))).thenReturn(result);
 
-        String url = cloudinaryService.uploadFile(file);
+        Map<String, String> res = cloudinaryService.uploadFile(file, "templates", "test.png");
 
-        assertEquals("http://res.cloudinary.com/test.png", url);
+        assertEquals("http://res.cloudinary.com/test.png", res.get("url"));
+        assertTrue(res.containsKey("public_id"));
     }
 
     @Test
@@ -50,6 +54,7 @@ class CloudinaryServiceTest {
         
         when(uploader.upload(any(byte[].class), any(Map.class))).thenThrow(new IOException("Network error"));
 
-        assertThrows(com.resumeai.templateservice.exception.TemplateServiceException.class, () -> cloudinaryService.uploadFile(file));
+        assertThrows(com.resumeai.templateservice.exception.TemplateServiceException.class, () -> 
+            cloudinaryService.uploadFile(file, "templates", "test.png"));
     }
 }

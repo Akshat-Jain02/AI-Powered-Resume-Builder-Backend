@@ -62,19 +62,16 @@ public class ResumeController {
             // 2. Extract text
             log.debug("Starting text extraction for file: {}", file.getOriginalFilename());
             String extractedText = extractTextFromFile(file);
-            if (extractedText == null) {
+            if (extractedText == null || extractedText.isBlank()) {
                 return ResponseEntity.badRequest()
-                        .body(Map.of(ERR_KEY, "Could not extract text from the file. Please check the file."));
+                        .body(Map.of(ERR_KEY, "Could not extract text from the file. Please ensure the file is not empty or corrupted."));
             }
             log.info("Text extraction successful for file: {}. Length: {} chars", file.getOriginalFilename(), extractedText.length());
 
             // 3. Analyse with Gemini
             log.debug("Sending request to Gemini AI for resume analysis...");
             ResumeAnalysis analysis = geminiService.analyzeResume(extractedText);
-            if (analysis == null) {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(Map.of(ERR_KEY, "AI analysis failed. Please try again."));
-            }
+            
             log.info("Gemini analysis completed for user: {}", username);
 
             // 4. Deduct credits
@@ -86,10 +83,16 @@ public class ResumeController {
             return ResponseEntity.ok(analysis);
 
         } catch (IllegalArgumentException e) {
+            log.warn("Invalid request for resume analysis: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(ERR_KEY, e.getMessage()));
-        } catch (Exception e) {
+        } catch (com.resumeai.exception.AiServiceException e) {
+            log.error("Managed AI service error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(ERR_KEY, "Failed to process resume: " + e.getMessage()));
+                    .body(Map.of(ERR_KEY, "AI analysis failed: " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("Unexpected error during resume processing", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(ERR_KEY, "An unexpected error occurred while processing the resume."));
         }
     }
 
@@ -117,19 +120,16 @@ public class ResumeController {
             // 2. Extract text
             log.debug("Starting text extraction for ATS scoring: {}", file.getOriginalFilename());
             String extractedText = extractTextFromFile(file);
-            if (extractedText == null) {
+            if (extractedText == null || extractedText.isBlank()) {
                 return ResponseEntity.badRequest()
-                        .body(Map.of(ERR_KEY, "Could not extract text from the file. Please check the file."));
+                        .body(Map.of(ERR_KEY, "Could not extract text from the file for ATS scoring."));
             }
             log.info("Text extraction for ATS scoring successful. Length: {} chars", extractedText.length());
 
             // 3. Get ATS score
             log.debug("Sending request to Gemini AI for ATS scoring...");
             ATSScoreDTO atsScoreDTO = geminiService.getATSScore(extractedText);
-            if (atsScoreDTO == null) {
-                return ResponseEntity.internalServerError()
-                        .body(Map.of(ERR_KEY, "Failed to generate ATS score"));
-            }
+            
             log.info("ATS score generation completed for user: {}. Score: {}", username, atsScoreDTO.getAtsScore());
 
             // 4. Deduct credits
@@ -140,11 +140,17 @@ public class ResumeController {
 
             return ResponseEntity.ok(atsScoreDTO);
 
+        } catch (com.resumeai.exception.AiServiceException e) {
+            log.error("Managed ATS scoring error: {}", e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body(Map.of(ERR_KEY, "ATS scoring failed: " + e.getMessage()));
         } catch (Exception e) {
+            log.error("Unexpected error during ATS score processing", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(ERR_KEY, "Failed to process ATS score: " + e.getMessage()));
+                    .body(Map.of(ERR_KEY, "An unexpected error occurred while generating the ATS score."));
         }
     }
+
 
     // ── Private helpers ───────────────────────────────────────────
 

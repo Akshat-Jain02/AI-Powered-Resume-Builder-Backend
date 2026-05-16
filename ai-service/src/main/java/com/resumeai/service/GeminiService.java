@@ -34,6 +34,7 @@ public class GeminiService {
         client = Client.builder().apiKey(apiKey).build();
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "ai_results", key = "'analysis:' + T(org.springframework.util.DigestUtils).md5DigestAsHex(#extractedText.getBytes())")
     public ResumeAnalysis analyzeResume(String extractedText) {
         String prompt = """
                 You are a resume analysis API. Return ONLY valid JSON with no markdown, no explanation, no extra text.
@@ -60,13 +61,14 @@ public class GeminiService {
             return objectMapper.readValue(text, ResumeAnalysis.class);
         } catch (JsonProcessingException e) {
             log.error("Failed to parse Gemini response for analyzeResume: {}", e.getMessage());
-            return null;
+            throw new com.resumeai.exception.AiServiceException("Failed to process AI analysis response", e);
         } catch (Exception e) {
             log.error("Gemini API call failed: {}", e.getMessage());
-            return null;
+            throw new com.resumeai.exception.AiServiceException("Gemini AI service communication failed", e);
         }
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "ai_results", key = "'ats:' + T(org.springframework.util.DigestUtils).md5DigestAsHex(#extractedText.getBytes())")
     public ATSScoreDTO getATSScore(String extractedText) {
         String prompt = """
                 You are an ATS scoring API. Return ONLY valid JSON with no markdown, no explanation, no extra text.
@@ -94,12 +96,13 @@ public class GeminiService {
             return objectMapper.readValue(text, ATSScoreDTO.class);
         } catch (JsonProcessingException e) {
             log.error("Failed to parse Gemini response for getATSScore: {}", e.getMessage());
-            return null;
+            throw new com.resumeai.exception.AiServiceException("Failed to process ATS score response", e);
         } catch (Exception e) {
             log.error("Gemini API call failed: {}", e.getMessage());
-            return null;
+            throw new com.resumeai.exception.AiServiceException("Gemini AI service scoring failed", e);
         }
     }
+
 
     /** Strip markdown code fences and leading/trailing whitespace from Gemini output */
     private String cleanJson(String raw) {

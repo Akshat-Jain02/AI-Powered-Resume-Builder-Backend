@@ -24,6 +24,7 @@
 
         <java.version>25</java.version>
         <spring-cloud.version>2025.0.0</spring-cloud.version>
+
     </properties>
 
     <dependencies>
@@ -128,6 +129,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
+                    <jvmArguments>-Xmx512m -Xms256m</jvmArguments>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>
@@ -243,6 +245,7 @@
 		</plugins>
     </build>
 </project>
+
 
 
 

@@ -10,12 +10,16 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/compiler")
 public class CompilerController {
 
     private final LaTeXCompilerService compilerService;
+
+    private static final java.util.regex.Pattern CRLF_PATTERN = java.util.regex.Pattern.compile("[\\r\\n]++");
+    private static final java.util.regex.Pattern PRINTABLE_ASCII_PATTERN = java.util.regex.Pattern.compile("[^\\x20-\\x7E]++");
 
     public CompilerController(LaTeXCompilerService compilerService) {
         this.compilerService = compilerService;
@@ -27,16 +31,16 @@ public class CompilerController {
     private String sanitizeForHeader(String value) {
         if (value == null) return "";
         // Replace CR, LF, and CRLF with a single space
-        String sanitized = value.replaceAll("[\\r\\n]+", " ");
+        String sanitized = CRLF_PATTERN.matcher(value).replaceAll(" ");
         // Strip any remaining non-printable characters or control characters to ensure strict header compliance
-        return sanitized.replaceAll("[^\\x20-\\x7E]", "").trim();
+        return PRINTABLE_ASCII_PATTERN.matcher(sanitized).replaceAll("").trim();
     }
 
 
     @PostMapping("/compile")
     public ResponseEntity<byte[]> compile(@RequestBody CompileRequest request) {
         try {
-            CompilationResult result = compilerService.compile(request.getCode(), request.getPhotoBase64());
+            CompilationResult result = compilerService.compile(request.getCode(), request.getPhotoBase64(), request.getFiles());
             
             if (!result.isSuccess()) {
                 String logs = result.getLogs() != null ? result.getLogs() : "Unknown compilation error";
@@ -51,10 +55,11 @@ public class CompilerController {
             headers.setContentDispositionFormData("filename", "resume.pdf");
             
             return new ResponseEntity<>(result.getPdfBytes(), headers, HttpStatus.OK);
-        } catch (IOException | InterruptedException e) {
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
+        } catch (InterruptedException _) {
+            Thread.currentThread().interrupt();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Compilation interrupted".getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
             String errorMsg = e.getMessage() != null ? e.getMessage() : "Internal server error";
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(errorMsg.getBytes(StandardCharsets.UTF_8));
@@ -64,9 +69,12 @@ public class CompilerController {
     public static class CompileRequest {
         private String code;
         private String photoBase64;
+        private Map<String, String> files; // filename -> base64 content (Overleaf-style project files)
         public String getCode() { return code; }
         public void setCode(String code) { this.code = code; }
         public String getPhotoBase64() { return photoBase64; }
         public void setPhotoBase64(String photoBase64) { this.photoBase64 = photoBase64; }
+        public Map<String, String> getFiles() { return files; }
+        public void setFiles(Map<String, String> files) { this.files = files; }
     }
 }

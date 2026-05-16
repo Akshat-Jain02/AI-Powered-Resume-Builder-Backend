@@ -92,4 +92,36 @@ class TemplateControllerTest {
                 .andExpect(status().isFound())
                 .andExpect(header().string("Location", "http://cloudinary.com/img.png"));
     }
+
+    @Test
+    @WithMockUser
+    void getTemplateImage_WhenNotExists_ShouldReturn404() throws Exception {
+        when(templateService.getById(1L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/templates/1/image"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser
+    void getTemplateImage_WhenUrlIsNull_ShouldReturn404() throws Exception {
+        ResumeTemplate t = new ResumeTemplate();
+        t.setPreviewImageUrl(null);
+        when(templateService.getById(1L)).thenReturn(Optional.of(t));
+
+        mockMvc.perform(get("/api/templates/1/image"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser
+    void getTopTemplates_ShouldReturnTemplates() throws Exception {
+        ResumeTemplate t = new ResumeTemplate();
+        t.setName("Top Template");
+        when(templateService.getTopByUsage()).thenReturn(Arrays.asList(t));
+
+        mockMvc.perform(get("/api/templates/top"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Top Template"));
+    }
 }

@@ -15,7 +15,11 @@ import org.mockito.quality.Strictness;
 
 import java.util.Optional;
 
+import feign.FeignException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,5 +57,42 @@ class ResumeServiceExtraCoverageTest {
             resumeService.saveResume(req, "alice");
         } catch (Exception ignored) {
         }
+    }
+
+    @Test
+    void generatePdf_feignException_throwsIllegalStateException() {
+        when(templateServiceClient.generatePdf(any())).thenThrow(mock(FeignException.class));
+        GeneratePdfRequest request = new GeneratePdfRequest();
+        assertThatThrownBy(() -> resumeService.generatePdf(request))
+            .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void saveResume_jsonException_throwsResumeServiceException() throws JsonProcessingException {
+        GeneratePdfRequest req = new GeneratePdfRequest();
+        req.setTemplateId(1L);
+        req.setResumeData(new com.resumeai.resumeservice.dto.ResumeDataDto());
+        
+        when(templateServiceClient.getTemplateById(any())).thenReturn(new com.resumeai.resumeservice.dto.TemplateDto());
+        when(objectMapper.writeValueAsString(any())).thenThrow(mock(JsonProcessingException.class));
+        
+        assertThatThrownBy(() -> resumeService.saveResume(req, "alice"))
+            .isInstanceOf(com.resumeai.resumeservice.exception.ResumeServiceException.class);
+    }
+
+    @Test
+    void fetchTemplate_notFound_throwsIllegalArgumentException() {
+        when(templateServiceClient.getTemplateById(any())).thenThrow(mock(FeignException.NotFound.class));
+        GeneratePdfRequest request = new GeneratePdfRequest();
+        assertThatThrownBy(() -> resumeService.saveResume(request, "alice"))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void fetchTemplate_otherFeignException_throwsIllegalStateException() {
+        when(templateServiceClient.getTemplateById(any())).thenThrow(mock(FeignException.class));
+        GeneratePdfRequest request = new GeneratePdfRequest();
+        assertThatThrownBy(() -> resumeService.saveResume(request, "alice"))
+            .isInstanceOf(IllegalStateException.class);
     }
 }

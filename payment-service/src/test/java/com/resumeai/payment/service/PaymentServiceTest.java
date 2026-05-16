@@ -170,7 +170,7 @@ class PaymentServiceTest {
         when(paymentRepository.findByOrderId("ORDER_UNKNOWN")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> paymentService.verifyAndProcessPayment("alice", req))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -183,7 +183,7 @@ class PaymentServiceTest {
         when(paymentRepository.findByOrderId("ORDER_123")).thenReturn(Optional.of(payment));
 
         assertThatThrownBy(() -> paymentService.verifyAndProcessPayment("alice", req))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(com.resumeai.payment.exception.PaymentSecurityException.class)
                 .hasMessageContaining("does not belong to user");
     }
 
