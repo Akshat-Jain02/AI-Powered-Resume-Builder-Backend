@@ -35,11 +35,11 @@ public class LaTeXCompilerService {
     private static final String MAIN_PDF = "main.pdf";
     private static final String DATA_DIR = "/data";
 
-    private static final Pattern MAGIC_PATTERN = Pattern.compile("^\\s*%\\s*!TEX\\s+program\\s*=\\s*(\\w+)", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
-    private static final Pattern BASE64_PREFIX_PATTERN = Pattern.compile("^data:[^,]*;base64,");
-    // Matches \includegraphics with optional [...] args, capturing the {filename}
+    private static final Pattern MAGIC_PATTERN = Pattern.compile("^\\s*+%\\s*+!TEX\\s++program\\s*+=\\s*+(\\w++)", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+    private static final Pattern BASE64_PREFIX_PATTERN = Pattern.compile("^data:[^,;]*+;base64,");
+    /** Matches \includegraphics with optional [...] args, capturing the {filename} */
     private static final Pattern INCLUDEGRAPHICS_PATTERN = Pattern.compile(
-            "\\\\includegraphics\\s*(?:\\[[^]]*\\])?\\s*\\{([^}]+)\\}");
+            "\\\\includegraphics\\s*+(?:\\[[^]]*+\\])?\\s*+\\{([^}]+)\\}");
 
     public static class CompilationResult {
         private byte[] pdfBytes;

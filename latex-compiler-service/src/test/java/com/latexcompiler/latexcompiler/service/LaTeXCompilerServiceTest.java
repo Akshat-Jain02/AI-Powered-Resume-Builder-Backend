@@ -277,7 +277,7 @@ class LaTeXCompilerServiceTest {
 
     @Test
     void testIsDockerImageAvailable_Exception() {
-        try (org.mockito.MockedConstruction<ProcessBuilder> mocked = mockConstruction(ProcessBuilder.class, (mock, context) -> {
+        try (var _ = mockConstruction(ProcessBuilder.class, (mock, context) -> {
             when(mock.start()).thenThrow(new IOException("Simulated IOException"));
         })) {
             LaTeXCompilerService exceptionService = new LaTeXCompilerService();
@@ -287,7 +287,7 @@ class LaTeXCompilerServiceTest {
 
     @Test
     void testIsDockerImageAvailable_InterruptedException() {
-        try (org.mockito.MockedConstruction<ProcessBuilder> mocked = mockConstruction(ProcessBuilder.class, (mock, context) -> {
+        try (var _ = mockConstruction(ProcessBuilder.class, (mock, context) -> {
             Process processMock = mock(Process.class);
             when(mock.start()).thenReturn(processMock);
             when(processMock.waitFor(anyLong(), any())).thenThrow(new InterruptedException("Simulated InterruptedException"));

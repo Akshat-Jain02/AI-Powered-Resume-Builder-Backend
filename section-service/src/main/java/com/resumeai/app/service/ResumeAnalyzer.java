@@ -142,7 +142,7 @@ public class ResumeAnalyzer {
 
         // Phone (various formats)
         Pattern phonePattern = Pattern.compile(
-                "(?:\\+?\\d{1,3}[\\s\\-.]?)?(?:\\(?\\d{3}\\)?[\\s\\-.]?)?\\d{3}[\\s\\-.]?\\d{4}"
+                "(?:\\+?+\\d{1,3}+[\\s\\-.]?+)?+(?:\\(?+\\d{3}+\\)?+[\\s\\-.]?+)?+\\d{3}+[\\s\\-.]?+\\d{4}+"
         );
         Matcher phoneMatcher = phonePattern.matcher(raw);
         if (phoneMatcher.find()) r.setPhone(phoneMatcher.group().trim());
@@ -161,7 +161,7 @@ public class ResumeAnalyzer {
 
         // Location — look for city/state patterns
         Pattern locPattern = Pattern.compile(
-                "(?i)(?:location|address|city)?[:\\s]*([A-Za-z ]+,\\s*[A-Za-z ]+)(?:\\s|$)"
+                "(?i)(?:location|address|city)?+[:\\s]*+([A-Za-z ]++,\\s*+[A-Za-z ]++)(?:\\s|$)"
         );
         Matcher locMatcher = locPattern.matcher(raw);
         if (locMatcher.find()) r.setLocation(locMatcher.group(1).trim());
@@ -237,7 +237,7 @@ public class ResumeAnalyzer {
         int years = 0;
 
         // Pattern 1: "X years of experience"
-        Pattern p1 = Pattern.compile("(\\d+)\\+?\\s*(?:years?|yrs?)\\s*(?:of\\s+)?(?:experience|exp)", Pattern.CASE_INSENSITIVE);
+        Pattern p1 = Pattern.compile("(\\d+)\\+?+\\s*+(?:years?|yrs?)\\s*+(?:of\\s++)?(?:experience|exp)", Pattern.CASE_INSENSITIVE);
         Matcher m1 = p1.matcher(raw);
         if (m1.find()) {
             years = Integer.parseInt(m1.group(1));
@@ -246,7 +246,7 @@ public class ResumeAnalyzer {
         // Pattern 2: Calculate from date ranges like "Jan 2019 – Present"
         if (years == 0) {
             Pattern dateRange = Pattern.compile(
-                    "(20\\d{2}|19\\d{2})\\s*[–\\-—to]+\\s*(20\\d{2}|present|current|now)",
+                    "(20\\d{2}+|19\\d{2}+)\\s*+[–\\-—to]++\\s*+(20\\d{2}+|present|current|now)",
                     Pattern.CASE_INSENSITIVE
             );
             Matcher dm = dateRange.matcher(raw);

@@ -15,6 +15,7 @@
         <sonar.projectKey>resumeai-synchronized</sonar.projectKey>
         <sonar.projectName>Resume AI Microservices</sonar.projectName>
         <java.version>25</java.version>
+        <sonar.skip>false</sonar.skip>
     </properties>
 
     <!-- Grouping all microservices below -->

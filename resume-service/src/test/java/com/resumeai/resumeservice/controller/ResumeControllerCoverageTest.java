@@ -1,10 +1,8 @@
 package com.resumeai.resumeservice.controller;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import static org.mockito.Mockito.mock;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.resumeai.resumeservice.dto.GeneratePdfRequest;
 import com.resumeai.resumeservice.service.ResumeService;

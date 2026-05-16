@@ -20,6 +20,7 @@ import java.util.Map;
 public class FileController {
 
     private final CloudinaryService cloudinaryService;
+    private static final String ERROR_KEY = "error";
 
     @Operation(summary = "Upload a project file", description = "Uploads an image to Cloudinary and returns the secure URL.")
     @ApiResponse(responseCode = "200", description = "File uploaded successfully")
@@ -28,7 +29,7 @@ public class FileController {
             @RequestHeader(value = "X-Username", required = false) String xUsername,
             @RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "File is empty"));
+            return ResponseEntity.badRequest().body(Map.of(ERROR_KEY, "File is empty"));
         }
         try {
             String username = (xUsername != null && !xUsername.isBlank()) ? xUsername : "anonymous";
@@ -42,7 +43,7 @@ public class FileController {
             ));
         } catch (Exception e) {
             log.error("File upload failed for {}: {}", file.getOriginalFilename(), e.getMessage());
-            return ResponseEntity.internalServerError().body(Map.of("error", "File upload failed."));
+            return ResponseEntity.internalServerError().body(Map.of(ERROR_KEY, "File upload failed."));
         }
     }
 
@@ -55,7 +56,7 @@ public class FileController {
             return ResponseEntity.ok(Map.of("message", "File " + publicId + " deleted successfully"));
         } catch (Exception e) {
             log.error("File deletion failed for {}: {}", publicId, e.getMessage());
-            return ResponseEntity.internalServerError().body(Map.of("error", "File deletion failed."));
+            return ResponseEntity.internalServerError().body(Map.of(ERROR_KEY, "File deletion failed."));
         }
     }
 }

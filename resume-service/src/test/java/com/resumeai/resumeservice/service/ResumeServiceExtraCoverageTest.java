@@ -62,7 +62,8 @@ class ResumeServiceExtraCoverageTest {
     @Test
     void generatePdf_feignException_throwsIllegalStateException() {
         when(templateServiceClient.generatePdf(any())).thenThrow(mock(FeignException.class));
-        assertThatThrownBy(() -> resumeService.generatePdf(new GeneratePdfRequest()))
+        GeneratePdfRequest request = new GeneratePdfRequest();
+        assertThatThrownBy(() -> resumeService.generatePdf(request))
             .isInstanceOf(IllegalStateException.class);
     }
 
@@ -82,14 +83,16 @@ class ResumeServiceExtraCoverageTest {
     @Test
     void fetchTemplate_notFound_throwsIllegalArgumentException() {
         when(templateServiceClient.getTemplateById(any())).thenThrow(mock(FeignException.NotFound.class));
-        assertThatThrownBy(() -> resumeService.saveResume(new GeneratePdfRequest(), "alice"))
+        GeneratePdfRequest request = new GeneratePdfRequest();
+        assertThatThrownBy(() -> resumeService.saveResume(request, "alice"))
             .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void fetchTemplate_otherFeignException_throwsIllegalStateException() {
         when(templateServiceClient.getTemplateById(any())).thenThrow(mock(FeignException.class));
-        assertThatThrownBy(() -> resumeService.saveResume(new GeneratePdfRequest(), "alice"))
+        GeneratePdfRequest request = new GeneratePdfRequest();
+        assertThatThrownBy(() -> resumeService.saveResume(request, "alice"))
             .isInstanceOf(IllegalStateException.class);
     }
 }

@@ -18,8 +18,8 @@ public class CompilerController {
 
     private final LaTeXCompilerService compilerService;
 
-    private static final java.util.regex.Pattern CRLF_PATTERN = java.util.regex.Pattern.compile("[\\r\\n]+");
-    private static final java.util.regex.Pattern PRINTABLE_ASCII_PATTERN = java.util.regex.Pattern.compile("[^\\x20-\\x7E]");
+    private static final java.util.regex.Pattern CRLF_PATTERN = java.util.regex.Pattern.compile("[\\r\\n]++");
+    private static final java.util.regex.Pattern PRINTABLE_ASCII_PATTERN = java.util.regex.Pattern.compile("[^\\x20-\\x7E]++");
 
     public CompilerController(LaTeXCompilerService compilerService) {
         this.compilerService = compilerService;

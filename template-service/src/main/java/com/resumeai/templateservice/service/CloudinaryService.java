@@ -14,6 +14,7 @@ import java.util.Map;
 public class CloudinaryService {
 
     private final Cloudinary cloudinary;
+    private static final String PUBLIC_ID_KEY = "public_id";
 
     public CloudinaryService(Cloudinary cloudinary) {
         this.cloudinary = cloudinary;
@@ -34,11 +35,11 @@ public class CloudinaryService {
 
             log.info("Uploading asset to Cloudinary with ID: {}", publicId);
             Map<?, ?> uploadResult = cloudinary.uploader().upload(fileBytes, 
-                    ObjectUtils.asMap("public_id", publicId, "overwrite", true));
+                    ObjectUtils.asMap(PUBLIC_ID_KEY, publicId, "overwrite", true));
             
             return Map.of(
                 "url", (String) uploadResult.get("secure_url"),
-                "public_id", (String) uploadResult.get("public_id")
+                PUBLIC_ID_KEY, (String) uploadResult.get(PUBLIC_ID_KEY)
             );
         } catch (IOException e) {
             throw new com.resumeai.templateservice.exception.TemplateServiceException("Failed to upload image to Cloudinary", e);
@@ -60,7 +61,7 @@ public class CloudinaryService {
             byte[] hash = digest.digest(bytes);
             return java.util.HexFormat.of().formatHex(hash);
         } catch (java.security.NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 algorithm not found", e);
+            throw new IllegalStateException("SHA-256 algorithm not found", e);
         }
     }
 }
