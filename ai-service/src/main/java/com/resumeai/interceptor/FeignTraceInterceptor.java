@@ -26,9 +26,6 @@ public class FeignTraceInterceptor implements RequestInterceptor {
             if (traceId == null || traceId.isBlank()) {
                 traceId = request.getHeader("X-Trace-Id");
             }
-            if (requestId == null || requestId.isBlank()) {
-                requestId = request.getHeader("X-Request-Id");
-            }
         }
 
         if (traceId != null && !traceId.isBlank()) {

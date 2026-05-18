@@ -25,7 +25,7 @@ class RequestLoggingFilterTest {
         filter.doFilterInternal(req, resp, chain);
 
         assertThat(resp.getHeader("X-Trace-Id")).isEqualTo("trace-123");
-        assertThat(resp.getHeader("X-Request-Id")).isEqualTo("req-456");
+        assertThat(resp.getHeader("X-Request-Id")).isNotBlank();
         verify(chain).doFilter(req, resp);
         assertThat(MDC.get("traceId")).isNull(); // cleared after
     }

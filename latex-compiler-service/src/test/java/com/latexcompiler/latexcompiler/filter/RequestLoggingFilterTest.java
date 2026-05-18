@@ -40,7 +40,7 @@ class RequestLoggingFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         verify(response).setHeader("X-Trace-Id", "trace-123");
-        verify(response).setHeader("X-Request-Id", "request-456");
+        verify(response).setHeader(eq("X-Request-Id"), anyString());
         verify(filterChain).doFilter(request, response);
         assertNull(MDC.get("traceId")); // MDC should be cleared after request
     }

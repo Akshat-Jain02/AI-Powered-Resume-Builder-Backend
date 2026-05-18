@@ -97,9 +97,8 @@ class FeignAuthInterceptorTest {
 
         Map<String, Collection<String>> headers = template.headers();
         assertTrue(headers.containsKey("X-Trace-Id"));
-        assertTrue(headers.containsKey("X-Request-Id"));
+        assertFalse(headers.containsKey("X-Request-Id"));
         assertEquals("req-trace", headers.get("X-Trace-Id").iterator().next());
-        assertEquals("req-req", headers.get("X-Request-Id").iterator().next());
     }
 
     @Test
@@ -116,9 +115,8 @@ class FeignAuthInterceptorTest {
 
         Map<String, Collection<String>> headers = template.headers();
         assertTrue(headers.containsKey("X-Trace-Id"));
-        assertTrue(headers.containsKey("X-Request-Id"));
+        assertFalse(headers.containsKey("X-Request-Id"));
         assertEquals("req-trace-2", headers.get("X-Trace-Id").iterator().next());
-        assertEquals("req-req-2", headers.get("X-Request-Id").iterator().next());
     }
 
     @Test
@@ -150,5 +148,6 @@ class FeignAuthInterceptorTest {
         Map<String, Collection<String>> headers = template.headers();
         assertFalse(headers.containsKey("X-Trace-Id"));
         assertTrue(headers.containsKey("X-Request-Id"));
+        assertEquals("test-req", headers.get("X-Request-Id").iterator().next());
     }
 }

@@ -44,7 +44,8 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 
         // Propagate existing trace from gateway, or mint a new one
         String traceId   = resolveHeader(request, TRACE_HEADER);
-        String requestId = resolveHeader(request, REQUEST_HEADER);
+        String requestId = UUID.randomUUID().toString(); // Always generate new ID for current leg
+        String parentRequestId = request.getHeader(REQUEST_HEADER);
 
         try {
             // Populate diagnostics context
@@ -53,6 +54,9 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             MDC.put("service", SERVICE_NAME);
             MDC.put("method", request.getMethod());
             MDC.put("uri", request.getRequestURI());
+            if (parentRequestId != null && !parentRequestId.isBlank()) {
+                MDC.put("parentRequestId", parentRequestId);
+            }
 
             response.setHeader(TRACE_HEADER, traceId);
             response.setHeader(REQUEST_HEADER, requestId);

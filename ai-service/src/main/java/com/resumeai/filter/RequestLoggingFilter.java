@@ -44,10 +44,11 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 
         // Use helper to resolve IDs
         String traceId = getHeaderOrDefault(request, TRACE_HEADER);
-        String requestId = getHeaderOrDefault(request, REQUEST_HEADER);
+        String requestId = UUID.randomUUID().toString(); // Always generate new ID for current leg
+        String parentRequestId = request.getHeader(REQUEST_HEADER);
 
         try {
-            populateMdc(traceId, requestId);
+            populateMdc(traceId, requestId, parentRequestId);
 
             response.setHeader(TRACE_HEADER, traceId);
             response.setHeader(REQUEST_HEADER, requestId);
@@ -67,11 +68,14 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         }
     }
 
-    private void populateMdc(String tId, String rId) {
+    private void populateMdc(String tId, String rId, String pId) {
         MDC.put("traceId", tId);
         MDC.put("requestId", rId);
         MDC.put("service", SERVICE_NAME);
         MDC.put("method", "AI_EXEC"); // Differentiate method
+        if (pId != null && !pId.isBlank()) {
+            MDC.put("parentRequestId", pId);
+        }
     }
 
     private String getHeaderOrDefault(HttpServletRequest req, String head) {

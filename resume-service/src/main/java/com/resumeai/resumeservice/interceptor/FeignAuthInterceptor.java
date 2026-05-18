@@ -14,7 +14,7 @@ public class FeignAuthInterceptor implements RequestInterceptor {
 
     @Override
     public void apply(RequestTemplate template) {
-        // Forward X-Trace-Id and X-Request-Id from MDC
+        // Forward X-Trace-Id from MDC
         String traceId = MDC.get("traceId");
         String requestId = MDC.get("requestId");
 
@@ -38,9 +38,6 @@ public class FeignAuthInterceptor implements RequestInterceptor {
             // Fallback for trace headers from incoming request if MDC didn't have them
             if (traceId == null || traceId.isBlank()) {
                 traceId = request.getHeader("X-Trace-Id");
-            }
-            if (requestId == null || requestId.isBlank()) {
-                requestId = request.getHeader("X-Request-Id");
             }
         }
 

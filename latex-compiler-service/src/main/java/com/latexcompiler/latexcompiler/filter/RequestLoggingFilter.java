@@ -38,7 +38,8 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         final String currentTraceId = resolveHeader(request, TRACE_HEADER);
-        final String currentRequestId = resolveHeader(request, REQUEST_HEADER);
+        final String currentRequestId = UUID.randomUUID().toString(); // Always generate new ID for current leg
+        final String parentRequestId = request.getHeader(REQUEST_HEADER);
 
         try {
             MDC.put("traceId", currentTraceId);
@@ -46,6 +47,9 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             MDC.put("service", SERVICE_NAME);
             MDC.put("method", request.getMethod());
             MDC.put("uri", request.getRequestURI());
+            if (parentRequestId != null && !parentRequestId.isBlank()) {
+                MDC.put("parentRequestId", parentRequestId);
+            }
 
             response.setHeader(TRACE_HEADER, currentTraceId);
             response.setHeader(REQUEST_HEADER, currentRequestId);
